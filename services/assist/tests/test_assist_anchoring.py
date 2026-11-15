@@ -70,3 +70,19 @@ def test_hindi_text():
     text = "मैं घर जाता हूँ and i am happy"
     [fix] = locate_fixes(text, [QuotedFix("and i am", "and I am")])
     assert apply(text, [fix]) == "मैं घर जाता हूँ and I am happy"
+
+def test_short_quote_matches_a_whole_word_not_part_of_one():
+    # Seen with qwen2.5:3b: it quoted just "i"; the "i" in "Meeting" must not be hit.
+    text = "Meeting on Friday. i will bring the slides."
+    [fix] = locate_fixes(text, [QuotedFix("i", "I")])
+    assert apply(text, [fix]) == "Meeting on Friday. I will bring the slides."
+
+
+def test_quote_found_only_inside_a_word_is_dropped():
+    assert locate_fixes("Meeting", [QuotedFix("i", "I")]) == []
+
+
+def test_quotes_with_punctuation_at_the_edges_still_match():
+    text = "Hello world how are you"
+    [fix] = locate_fixes(text, [QuotedFix(" how", ", how")])
+    assert apply(text, [fix]) == "Hello world, how are you"

@@ -6,6 +6,7 @@ finds it in the input, narrows it to the words that actually change, and
 drops anything that cannot be found.
 """
 
+import re
 from dataclasses import dataclass
 
 
@@ -29,6 +30,23 @@ class LocatedFix:
     source_index: int  # which input fix this came from
 
 
+def _find_words(text: str, quote: str, start: int) -> int:
+    """Where quote occurs in text at or after start, as whole words.
+
+    A plain substring search is not enough: a model that quotes just "i"
+    (to capitalize the pronoun) would otherwise hit the "i" inside
+    "Meeting" and the fix would corrupt the word. So a quote that begins
+    (or ends) with a letter or digit must not be glued to one in the text.
+    """
+    pattern = re.escape(quote)
+    if quote[:1].isalnum() or quote[:1] == "_":
+        pattern = r"(?<!\w)" + pattern
+    if quote[-1:].isalnum() or quote[-1:] == "_":
+        pattern += r"(?!\w)"
+    match = re.compile(pattern).search(text, start)
+    return match.start() if match else -1
+
+
 def locate_fixes(text: str, fixes: list[QuotedFix]) -> list[LocatedFix]:
     """Finds each fix in text. Returns them sorted, non-overlapping."""
     located: list[LocatedFix] = []
@@ -39,9 +57,9 @@ def locate_fixes(text: str, fixes: list[QuotedFix]) -> list[LocatedFix]:
         if not original or original == replacement:
             continue
 
-        index = text.find(original, cursor)
+        index = _find_words(text, original, cursor)
         if index == -1:
-            index = text.find(original)  # out of order: try from the start
+            index = _find_words(text, original, 0)  # out of order: try from the start
         if index == -1:
             continue  # quoted text is not in the document: drop the fix
         cursor = index + len(original)
