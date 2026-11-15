@@ -10,6 +10,7 @@ pythonpath = [
     "services/gateway/src",
     "services/assist/src",
     "clients",
+    "tests",  # the shared in-process test stack
 ]
 testpaths = ["services", "clients", "tests"]
 addopts = "-q"
