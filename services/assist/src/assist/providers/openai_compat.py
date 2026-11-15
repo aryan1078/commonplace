@@ -1,7 +1,8 @@
 """A provider for any service with an OpenAI-compatible chat API.
 
-That includes Google Gemini, Groq, OpenRouter and OpenAI itself: only the
-base URL, API key and model name change, and those come from settings.
+That includes a local Ollama server (the default), Google Gemini, Groq,
+OpenRouter and OpenAI itself: only the base URL, API key and model name
+change, and those come from settings.
 """
 
 from collections.abc import AsyncIterator
@@ -18,7 +19,7 @@ class OpenAICompatProvider(Provider):
         if not (settings.base_url and settings.api_key and settings.model):
             raise ValueError(
                 "ASSIST_BASE_URL, ASSIST_API_KEY and ASSIST_MODEL must all be set "
-                "when ASSIST_PROVIDER=openai_compat"
+                "when ASSIST_PROVIDER is ollama or openai_compat"
             )
         self._client = openai.AsyncOpenAI(
             api_key=settings.api_key,

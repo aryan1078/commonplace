@@ -3,7 +3,8 @@
 Short documents are summarized in one call. Long ones are split into chunks,
 each chunk is summarized on its own ("map"), and then the chunk summaries are
 combined into one final summary ("reduce"). This keeps every single request
-small enough for free-tier token limits.
+small enough for a small local model's context window (and for hosted
+free-tier token limits).
 """
 
 import asyncio
@@ -14,7 +15,7 @@ from collab.v1 import assist_pb2
 from ..providers import Provider
 
 CHUNK_CHARS = 6000  # target size of one chunk sent to the model
-MAX_PARALLEL = 2  # chunk summaries running at once (free tiers limit req/min)
+MAX_PARALLEL = 2  # chunk summaries running at once (a CPU model serves one at a time anyway)
 
 _LENGTH_INSTRUCTIONS = {
     assist_pb2.SUMMARY_LENGTH_SHORT: "in one or two sentences",

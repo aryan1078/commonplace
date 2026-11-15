@@ -1,5 +1,7 @@
-"""Calls the running Assist service and prints the results.
+"""Calls the running Assist service directly (bypassing the gateway) and
+prints the results. Needs the generated code on the path:
 
+    set PYTHONPATH=gen\\python
     python services\\assist\\tools\\try_assist.py
     python services\\assist\\tools\\try_assist.py "Their going too the libary tomorow."
 """
@@ -20,7 +22,7 @@ We agreed to use Raft for replication instead of a CRDT library, because the \
 course grades consensus. One person owns the Assist service; another starts the document \
 server this week.
 
-The LLM provider is Groq for now because Gemini's free tier returned 503 errors. \
+The LLM is qwen2.5:3b running on Ollama on its own machine. \
 Next meeting is Friday, where we demo grammar checking and summaries."""
 
 
@@ -110,6 +112,21 @@ async def main(text: str) -> None:
                 print("  (no change suggested)")
         except grpc.aio.AioRpcError as err:
             print(f"  Enhance failed: {err.code().name}: {err.details()}")
+
+        for question in ("Who owns the Assist service?", "What is the budget?"):
+            print(f"\nGetLLMAnswer: {question}")
+            try:
+                reply = await stub.GetLLMAnswer(
+                    assist_pb2.GetLLMAnswerRequest(
+                        request_id=str(uuid.uuid4()),
+                        query=question,
+                        context=common_pb2.DocumentSnapshot(doc_id="demo", revision=7, text=NOTES),
+                    ),
+                    timeout=60,
+                )
+                print(f"  {reply.answer}")
+            except grpc.aio.AioRpcError as err:
+                print(f"  GetLLMAnswer failed: {err.code().name}: {err.details()}")
 
 
 if __name__ == "__main__":

@@ -17,6 +17,23 @@ def _text_between_tags(content: str) -> str:
     return match.group(1) if match else content
 
 
+def _document(content: str) -> tuple[str, str]:
+    """Splits an "ask" prompt into (document, question)."""
+    match = re.search(r"<document>\n?(.*?)\n?</document>\s*Question:\s*(.*)", content, flags=re.DOTALL)
+    return (match.group(1), match.group(2)) if match else ("", content)
+
+
+def _best_sentence(document: str, question: str) -> str | None:
+    """The sentence sharing the most meaningful words with the question."""
+    words = {w for w in re.findall(r"\w+", question.lower()) if len(w) > 3}
+    best, best_score = None, 0
+    for sentence in re.split(r"(?<=[.!?])\s+|\n+", document):
+        score = len(words & set(re.findall(r"\w+", sentence.lower())))
+        if score > best_score:
+            best, best_score = sentence.strip(), score
+    return best
+
+
 def _first_sentence(text: str) -> str:
     match = re.search(r".+?[.!?](?=\s|$)", text.strip(), flags=re.DOTALL)
     return (match.group(0) if match else text.strip())[:200]
@@ -45,6 +62,11 @@ class FakeProvider(Provider):
 
         if task == "summarize_chunk":
             return _first_sentence(text)
+
+        if task == "ask":
+            # Like the real prompt demands: answer from the document or say so.
+            document, question = _document(messages[-1]["content"])
+            return _best_sentence(document, question) or "The document does not say."
 
         if task == "enhance":
             # "Concise" in the simplest possible way: drop the word "very".

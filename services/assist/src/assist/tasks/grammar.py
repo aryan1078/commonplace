@@ -2,14 +2,14 @@
 
 import json
 import logging
-import re
 
-from pydantic import BaseModel, ValidationError
+from pydantic import ValidationError
 
 from collab.v1 import assist_pb2, common_pb2
 
 from ..anchoring import QuotedFix, locate_fixes
 from ..providers import Provider, ProviderError
+from ..schemas import parse_grammar_result
 
 log = logging.getLogger(__name__)
 
@@ -30,17 +30,6 @@ Reply with JSON only, in exactly this shape:
 {"fixes": [{"original": "...", "replacement": "...", "reason": "short explanation", \
 "kind": "grammar" | "spelling" | "punctuation"}]}
 If there are no mistakes, reply {"fixes": []}."""
-
-
-class Fix(BaseModel):
-    original: str
-    replacement: str
-    reason: str = ""
-    kind: str = "grammar"
-
-
-class GrammarResult(BaseModel):
-    fixes: list[Fix] = []
 
 
 _KINDS = {
@@ -64,12 +53,6 @@ def build_messages(ctx: assist_pb2.TextContext) -> list[dict[str, str]]:
     ]
 
 
-def parse_result(raw: str) -> GrammarResult:
-    # Some models wrap JSON in ```json fences even when asked not to.
-    cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw.strip())
-    return GrammarResult.model_validate(json.loads(cleaned))
-
-
 async def check_grammar(
     provider: Provider, ctx: assist_pb2.TextContext, timeout: float | None
 ) -> assist_pb2.CheckGrammarResponse:
@@ -82,7 +65,7 @@ async def check_grammar(
     for attempt in (1, 2):  # one retry if the model returns malformed JSON
         raw = await provider.complete("grammar", messages, json_mode=True, timeout=timeout)
         try:
-            result = parse_result(raw)
+            result = parse_grammar_result(raw)
             break
         except (json.JSONDecodeError, ValidationError) as err:
             log.warning("grammar: unusable model output (attempt %d): %s", attempt, err)
