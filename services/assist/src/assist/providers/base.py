@@ -34,12 +34,15 @@ class Provider(ABC):
         json_mode: bool = False,
         fast: bool = False,
         timeout: float | None = None,
+        temperature: float | None = None,
     ) -> str:
         """Returns the model's whole answer as one string.
 
         task:      a short name ("grammar", "summarize", ...) for logs and fakes.
         json_mode: ask the provider to return a JSON object.
         fast:      use the faster (usually smaller) model.
+        temperature: 0 for repeatable answers (checks, facts); None for the
+                   provider's default.
         """
 
     @abstractmethod

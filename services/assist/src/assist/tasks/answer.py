@@ -72,6 +72,17 @@ async def get_llm_answer(
         response.answer = NOT_IN_DOCUMENT  # nothing to answer from; skip the model
         return response
 
-    answer = await provider.complete("ask", build_messages(query, request.context.text), timeout=timeout)
-    response.answer = answer.strip() or NOT_IN_DOCUMENT
+    answer = await provider.complete(
+        "ask", build_messages(query, request.context.text), timeout=timeout, temperature=0
+    )
+    response.answer = normalize_answer(answer)
     return response
+
+
+def normalize_answer(answer: str) -> str:
+    """Small models paraphrase the refusal ("The document does not say anything
+    about X"); clients rely on the exact sentence, so restore it."""
+    answer = answer.strip()
+    if not answer or answer.lower().startswith(NOT_IN_DOCUMENT.lower().rstrip(".")):
+        return NOT_IN_DOCUMENT
+    return answer

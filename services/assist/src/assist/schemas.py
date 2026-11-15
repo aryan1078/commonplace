@@ -7,14 +7,21 @@ and anything that does not fit is retried or dropped, never passed on.
 import json
 import re
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 
 class Fix(BaseModel):
     original: str
     replacement: str
-    reason: str = ""
-    kind: str = "grammar"
+    # Small models write null for fields they have nothing to say about;
+    # that is no reason to throw away the fix.
+    reason: str | None = ""
+    kind: str | None = "grammar"
+
+    @field_validator("reason", "kind", mode="after")
+    @classmethod
+    def _null_to_default(cls, value: str | None, info) -> str:
+        return value if value is not None else cls.model_fields[info.field_name].default
 
 
 class GrammarResult(BaseModel):

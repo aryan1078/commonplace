@@ -37,8 +37,10 @@ class OpenAICompatProvider(Provider):
             args["reasoning_effort"] = self._reasoning_effort
         return args
 
-    async def complete(self, task, messages, *, json_mode=False, fast=False, timeout=None):
+    async def complete(self, task, messages, *, json_mode=False, fast=False, timeout=None, temperature=None):
         args = self._base_args(messages, fast)
+        if temperature is not None:
+            args["temperature"] = temperature
         if json_mode:
             args["response_format"] = {"type": "json_object"}
         try:

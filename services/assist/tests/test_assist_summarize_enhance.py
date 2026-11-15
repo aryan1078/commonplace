@@ -129,3 +129,22 @@ def test_mode_must_be_set():
         asyncio.run(
             enhance(FakeProvider(), enhance_request("x", mode=assist_pb2.ENHANCE_MODE_UNSPECIFIED), None)
         )
+
+
+def test_rewrite_that_runs_past_the_selection_is_dropped():
+    request = enhance_request("The LLM gives suggestions.")
+    request.context.before = "We replicate every document with Raft across three nodes.\n"
+    copied = RecordingProvider(answer="The LLM suggests. We replicate every document with Raft across three nodes.")
+    assert list(asyncio.run(enhance(copied, request, None)).suggestions) == []
+    runaway = RecordingProvider(answer="The LLM suggests. " + "And then more. " * 10)
+    assert list(asyncio.run(enhance(runaway, request, None)).suggestions) == []
+
+
+def test_only_text_before_the_selection_is_sent():
+    request = enhance_request("The LLM gives suggestions.")
+    request.context.before = "Earlier line.\n"
+    request.context.after = "\nDecision: the demo is on Tuesday."
+    provider = RecordingProvider(answer="The LLM suggests.")
+    asyncio.run(enhance(provider, request, None))
+    prompt = provider.calls[0][1]
+    assert "Earlier line." in prompt and "Decision" not in prompt and prompt.endswith("</text>")

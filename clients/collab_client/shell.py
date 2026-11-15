@@ -79,7 +79,9 @@ class Shell:
 
     async def run_command(self, line: str) -> bool:
         """Runs one command. Returns False to quit."""
-        cmd, _, rest = line.strip().partition(" ")
+        # Only the line ending and the space before the command are removed:
+        # spaces at the end of typed text are part of the text.
+        cmd, _, rest = line.rstrip("\r\n").lstrip().partition(" ")
         args = shlex.split(rest) if rest and cmd not in ("append", "insert", "ask") else rest.split()
         c = self.client
 

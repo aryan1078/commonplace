@@ -27,7 +27,7 @@ def test_shell_commands(capsys):
             async with CollabClient(stack.gateway) as client:
                 await client.login("alice", "alice123")
                 shell = Shell(client)
-                for line in ["open notes", "append so i went home.", "insert 0 Hi! ", "delete 0 3",
+                for line in ["open notes", "append so i went home.", "insert 0 Hi! ", "delete 0 4",
                              "cursor 2 5", "show", "history", "who", "docs", "grammar", "accept 1",
                              "enhance 0 5 formal", "summarize short", "complete", "ask Where did I go?"]:
                     assert await shell.run_command(line), line

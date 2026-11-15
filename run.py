@@ -37,6 +37,12 @@ def main() -> int:
         print("Generated code is missing. Run:  python scripts/gen_proto.py", file=sys.stderr)
         return 1
 
+    # Documents and LLM answers can hold any character (emoji, Devanagari...).
+    # On Windows, output redirected to a file or pipe defaults to the ANSI code
+    # page, where printing them would crash; UTF-8 never does.
+    for stream in (sys.stdout, sys.stderr):
+        stream.reconfigure(encoding="utf-8", errors="replace")
+
     sys.path[:0] = [str(p) for p in SOURCE_ROOTS]
     name = sys.argv[1]
     module = __import__(COMMANDS[name], fromlist=["main"])

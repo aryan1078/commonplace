@@ -16,6 +16,20 @@ CONTEXT_CHARS = 1500  # how much text before the cursor to send
 DEFAULT_MAX_CHARS = 160  # stop streaming after roughly this much output
 
 
+def _space_before(before: str, first: str) -> str:
+    """Fixes the join between the text and the first streamed piece.
+
+    Models often drop the leading space the prompt asks for ("then" +
+    "I should" -> "thenI should"), or add one after a space already typed.
+    """
+    last = before[-1:]
+    if last.isspace():
+        return first.lstrip(" ")
+    if first[:1].isalnum() and (last.isalnum() or last in ".,;:!?"):
+        return " " + first
+    return first
+
+
 async def autocomplete(
     provider: Provider, request: assist_pb2.AutocompleteRequest, timeout: float | None
 ) -> AsyncIterator[assist_pb2.AutocompleteResponse]:
@@ -35,6 +49,10 @@ async def autocomplete(
     ]
     sent = 0
     async for piece in provider.stream("autocomplete", messages, fast=True, timeout=timeout):
+        if sent == 0:
+            piece = _space_before(before, piece)
+            if not piece:
+                continue  # leading whitespace only; wait for real text
         piece = piece[: max_chars - sent]
         if piece:
             sent += len(piece)

@@ -40,7 +40,7 @@ def _first_sentence(text: str) -> str:
 
 
 class FakeProvider(Provider):
-    async def complete(self, task, messages, *, json_mode=False, fast=False, timeout=None):
+    async def complete(self, task, messages, *, json_mode=False, fast=False, timeout=None, temperature=None):
         text = _text_between_tags(messages[-1]["content"])
 
         if task == "grammar":

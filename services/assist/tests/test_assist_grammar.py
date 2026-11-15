@@ -64,3 +64,8 @@ def test_gives_up_after_two_bad_answers():
 def test_hallucinated_fix_is_dropped():
     provider = ScriptedProvider('{"fixes": [{"original": "not there", "replacement": "Not there"}]}')
     assert list(asyncio.run(check_grammar(provider, context("fine text"), None)).suggestions) == []
+
+def test_null_reason_and_kind_are_accepted():
+    provider = ScriptedProvider('{"fixes": [{"original": "teh cat", "replacement": "the cat", "reason": null, "kind": null}]}')
+    [s] = asyncio.run(check_grammar(provider, context("teh cat sat"), None)).suggestions
+    assert (s.original, s.replacement, s.kind) == ("teh", "the", assist_pb2.SUGGESTION_KIND_GRAMMAR)

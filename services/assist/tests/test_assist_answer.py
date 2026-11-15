@@ -113,3 +113,9 @@ def test_grpc_endpoint():
             await server.stop(None)
 
     asyncio.run(main())
+
+
+def test_paraphrased_refusal_becomes_the_exact_sentence():
+    assert ask(RecordingProvider("The document does not say about the budget."), "Budget?").answer == NOT_IN_DOCUMENT
+    assert ask(RecordingProvider("the document does not say"), "Budget?").answer == NOT_IN_DOCUMENT
+    assert ask(RecordingProvider("Friday."), "When?").answer == "Friday."
