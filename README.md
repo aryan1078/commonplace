@@ -81,13 +81,26 @@ python run.py client --gateway HOST:50070 shell
 ### Docker
 
 ```powershell
-docker compose -f deploy/docker-compose.yml up --build
+docker compose -f deploy/docker-compose.yml up -d --build
 docker compose -f deploy/docker-compose.yml run --rm client demo
+docker compose -f deploy/docker-compose.yml run --rm client simulate --users 8 --edits 25
+docker compose -f deploy/docker-compose.yml run --rm client shell --user alice --doc notes
+docker compose -f deploy/docker-compose.yml down
 ```
 
-This starts Ollama (and downloads the models once into a volume), assist,
-docnode and gateway; the client runs on demand. Set `ASSIST_PROVIDER=fake`
-in the environment to skip the model.
+This starts assist, docnode and gateway in containers; the client runs on
+demand. By default the assist container uses the **Ollama installed on this
+machine** (through `host.docker.internal:11434`), so pull the models there
+first. Alternatives:
+
+* Ollama in Docker as well (downloads the models once, about 3 GB, into a volume):
+
+  ```powershell
+  $env:ASSIST_BASE_URL = "http://ollama:11434/v1"
+  docker compose -f deploy/docker-compose.yml --profile ollama up -d --build
+  ```
+
+* No model at all: `$env:ASSIST_PROVIDER = "fake"` before `up`.
 
 ## Using the client
 

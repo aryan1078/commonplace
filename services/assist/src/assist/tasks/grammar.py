@@ -2,6 +2,7 @@
 
 import json
 import logging
+import re
 
 from pydantic import ValidationError
 
@@ -48,6 +49,18 @@ _KINDS = {
     "punctuation": assist_pb2.SUGGESTION_KIND_PUNCTUATION,
     "style": assist_pb2.SUGGESTION_KIND_STYLE,
 }
+
+# Chinese, Japanese and Korean characters. Qwen models sometimes write the
+# "reason" in Chinese even when told not to (seen with qwen2.5:3b at
+# temperature 0), so such reasons are replaced unless the text itself uses
+# those scripts.
+_CJK = re.compile(r"[぀-ヿ㐀-鿿가-힯]")
+
+
+def _reason(reason: str, kind: str, text: str) -> str:
+    if not reason or (_CJK.search(reason) and not _CJK.search(text)):
+        return kind.capitalize() if kind.lower() in _KINDS else "Grammar"
+    return reason
 
 
 def build_messages(ctx: assist_pb2.TextContext) -> list[dict[str, str]]:
@@ -106,7 +119,7 @@ async def check_grammar(
                 ),
                 original=fix.original,
                 replacement=fix.replacement,
-                reason=source.reason,
+                reason=_reason(source.reason, source.kind, ctx.text),
                 kind=_KINDS.get(source.kind.lower(), assist_pb2.SUGGESTION_KIND_GRAMMAR),
             )
         )

@@ -69,3 +69,13 @@ def test_null_reason_and_kind_are_accepted():
     provider = ScriptedProvider('{"fixes": [{"original": "teh cat", "replacement": "the cat", "reason": null, "kind": null}]}')
     [s] = asyncio.run(check_grammar(provider, context("teh cat sat"), None)).suggestions
     assert (s.original, s.replacement, s.kind) == ("teh", "the", assist_pb2.SUGGESTION_KIND_GRAMMAR)
+
+
+def test_reason_in_an_unexpected_script_is_replaced():
+    answer = '{"fixes": [{"original": "teh cat", "replacement": "the cat", "reason": "拼写错误", "kind": "spelling"}]}'
+    [s] = asyncio.run(check_grammar(ScriptedProvider(answer), context("teh cat sat"), None)).suggestions
+    assert s.reason == "Spelling"
+    # A Chinese reason is fine when the document itself is Chinese.
+    answer = '{"fixes": [{"original": "teh 猫", "replacement": "the 猫", "reason": "拼写错误", "kind": "spelling"}]}'
+    [s] = asyncio.run(check_grammar(ScriptedProvider(answer), context("teh 猫 sat"), None)).suggestions
+    assert s.reason == "拼写错误"

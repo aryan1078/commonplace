@@ -1,8 +1,8 @@
 """Runs any part of the system from source.
 
-    python run.py docnode  [--port 50051] [--id n1 --peers n2=host:port,... --data-dir data]
+    python run.py docnode  [--port 50051]
     python run.py assist
-    python run.py gateway  [--port 50070] [--docnodes host:port,...] [--assist host:port]
+    python run.py gateway  [--port 50070] [--docnodes host:port] [--assist host:port]
     python run.py client   [--gateway host:port] shell | demo | simulate ...
 
 Each service lives in its own source folder; this script puts them (and the

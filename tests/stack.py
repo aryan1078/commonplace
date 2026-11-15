@@ -58,7 +58,7 @@ async def running_stack(token_ttl_s: float = 3600) -> AsyncIterator[Stack]:
     docs = DocsClient(f"127.0.0.1:{doc_port}")
     assist_channel = grpc.aio.insecure_channel(f"127.0.0.1:{assist_port}")
     tokens = TokenStore(token_ttl_s)
-    service = CollabService(UserStore(USERS), tokens, docs, assist_pb2_grpc.AssistServiceStub(assist_channel), Hub())
+    service = CollabService(UserStore(USERS), tokens, docs, assist_channel, Hub())
     gateway, gw_port = await _server(lambda s: gateway_pb2_grpc.add_CollabServiceServicer_to_server(service, s))
     channel = grpc.aio.insecure_channel(f"127.0.0.1:{gw_port}")
     try:

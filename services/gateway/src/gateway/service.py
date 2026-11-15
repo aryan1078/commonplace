@@ -35,6 +35,7 @@ log = logging.getLogger("gateway")
 DOC_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,100}$")
 OUTBOX_SIZE = 1024  # events queued for one Join stream; presence is dropped beyond this
 ASSIST_TIMEOUT_S = 180.0  # a CPU model can be slow on long documents
+ASSIST_CONNECT_TIMEOUT_S = 10.0  # how long to wait for an unreachable LLM server
 MAX_HISTORY = 1000
 
 S = gateway_pb2  # shorthand for the Status values
@@ -81,11 +82,12 @@ def _closed(status: int, reason: str) -> gateway_pb2.JoinEvent:
 
 class CollabService(gateway_pb2_grpc.CollabServiceServicer):
     def __init__(self, users: UserStore, tokens: TokenStore, docs: DocsClient,
-                 assist: assist_pb2_grpc.AssistServiceStub, hub: Hub):
+                 assist_channel: grpc.aio.Channel, hub: Hub):
         self._users = users
         self._tokens = tokens
         self._docs = docs
-        self._assist = assist
+        self._assist_channel = assist_channel
+        self._assist = assist_pb2_grpc.AssistServiceStub(assist_channel)
         self._hub = hub
         self._sessions: dict[str, JoinSession] = {}
 
@@ -289,6 +291,13 @@ class CollabService(gateway_pb2_grpc.CollabServiceServicer):
             yield event(S.INVALID_ARGUMENT, "doc_id is required for this task")
             return
 
+        try:
+            # Fail fast if the LLM server is down, but wait out a reconnect:
+            # the LLM calls themselves may legitimately take minutes.
+            await asyncio.wait_for(self._assist_channel.channel_ready(), ASSIST_CONNECT_TIMEOUT_S)
+        except TimeoutError:
+            yield event(S.UNAVAILABLE, "the LLM server is not reachable")
+            return
         try:
             if task == "check_grammar":
                 yield event(grammar=await self._assist.CheckGrammar(request.check_grammar, timeout=ASSIST_TIMEOUT_S))

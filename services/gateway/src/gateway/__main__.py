@@ -12,10 +12,10 @@ from pathlib import Path
 import grpc
 from grpc_reflection.v1alpha import reflection
 
-from collab.v1 import assist_pb2_grpc, gateway_pb2, gateway_pb2_grpc
+from collab.v1 import gateway_pb2, gateway_pb2_grpc
 
 from .auth import DEFAULT_TOKEN_TTL_S, TokenStore, UserStore, load_users
-from .docs import DocsClient
+from .docs import CHANNEL_OPTIONS, DocsClient
 from .presence import Hub
 from .service import CollabService
 
@@ -40,12 +40,11 @@ async def serve(args: argparse.Namespace) -> None:
         log.warning("no users in %s; add some with scripts/manage_users.py", args.users)
     ttl = float(os.getenv("GATEWAY_TOKEN_TTL_S", DEFAULT_TOKEN_TTL_S))
     docs = DocsClient(args.docnodes)
-    assist_channel = grpc.aio.insecure_channel(args.assist)
+    assist_channel = grpc.aio.insecure_channel(args.assist, options=CHANNEL_OPTIONS)
 
     server = grpc.aio.server()
     gateway_pb2_grpc.add_CollabServiceServicer_to_server(
-        CollabService(UserStore(users), TokenStore(ttl), docs,
-                      assist_pb2_grpc.AssistServiceStub(assist_channel), Hub()),
+        CollabService(UserStore(users), TokenStore(ttl), docs, assist_channel, Hub()),
         server,
     )
     reflection.enable_server_reflection(

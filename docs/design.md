@@ -150,3 +150,19 @@ Document operations are never dropped this way.
   quote the text to change and `anchoring.py` finds it, narrows it to whole
   changed words and drops fixes that cannot be found. JSON replies are
   validated with pydantic (`schemas.py`), with one retry on malformed JSON.
+* **Lessons from testing with qwen2.5:3b on a CPU.** Grammar checking finds
+  far more mistakes with a checklist and one worked example in the prompt,
+  and runs at temperature 0 so the same text gets the same fixes (the retry
+  samples instead, since at 0 it would repeat a bad answer). The model
+  sometimes writes `null` fields or Chinese explanations; both are repaired
+  rather than failing the request. Shown the text *after* a selection, the
+  model "enhanced" the following lines instead, so enhance sees only the
+  text before it, and a rewrite that copies the surroundings or runs far
+  past the selection is dropped. Paraphrased "not in the document" answers
+  are mapped back to the exact sentence. Typical latency on a laptop CPU:
+  2-20 s per request; the full demo takes about a minute.
+* **Restarts.** The gateway's channels reconnect within 2 s of a backend
+  coming back (gRPC's default backoff grows to two minutes) and its calls
+  wait for that reconnect within their deadline. Before an LLM call it waits
+  at most 10 s for the LLM server, so a server that is down gives
+  `UNAVAILABLE` quickly instead of hanging for the 3-minute LLM deadline.

@@ -1,15 +1,23 @@
 # The whole system on one Docker host, one container per demo node:
-#   node 1: ollama + assist (the LLM server)
+#   node 1: assist (the LLM server) + Ollama
 #   node 2: docnode (document service)
 #   node 3: gateway (application server clients talk to)
 #   node 5: client (run on demand)
 #
-#   docker compose -f deploy/docker-compose.yml up --build
+#   docker compose -f deploy/docker-compose.yml up -d --build
 #   docker compose -f deploy/docker-compose.yml run --rm client demo
 #   docker compose -f deploy/docker-compose.yml run --rm client simulate --users 8 --edits 25
 #   docker compose -f deploy/docker-compose.yml run --rm client shell --user alice --doc notes
+#   docker compose -f deploy/docker-compose.yml down
 #
-# The first start downloads the two models (about 3 GB) into a volume.
+# LLM, pick one:
+#   * Ollama installed on this machine (the default): assist reaches it at
+#     host.docker.internal:11434. Pull the models there first.
+#   * Ollama in Docker too: add the profile and point assist at it. The first
+#     start downloads the models (about 3 GB) into a volume.
+#       set ASSIST_BASE_URL=http://ollama:11434/v1      (PowerShell: $env:ASSIST_BASE_URL=...)
+#       docker compose -f deploy/docker-compose.yml --profile ollama up -d --build
+#   * No model: set ASSIST_PROVIDER=fake before `up`.
 
 name: collab
 
@@ -23,6 +31,7 @@ x-app: &app
 services:
   ollama:
     image: ollama/ollama:latest
+    profiles: ["ollama"]
     volumes:
       - ollama-models:/root/.ollama
     ports:
@@ -32,6 +41,7 @@ services:
   # One-shot: downloads the models, then exits.
   ollama-pull:
     image: ollama/ollama:latest
+    profiles: ["ollama"]
     depends_on:
       - ollama
     environment:
@@ -44,10 +54,10 @@ services:
     command: ["assist"]
     environment:
       ASSIST_PROVIDER: ${ASSIST_PROVIDER:-ollama}
-      ASSIST_BASE_URL: http://ollama:11434/v1
+      ASSIST_BASE_URL: ${ASSIST_BASE_URL:-http://host.docker.internal:11434/v1}
       ASSIST_DEFAULT_TIMEOUT_S: "120"
-    depends_on:
-      - ollama
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  # needed on Linux; built in on Docker Desktop
     ports:
       - "50061:50061"
 
@@ -69,6 +79,8 @@ services:
   client:
     <<: *app
     profiles: ["client"]
+    # `run --rm client demo` then means `python run.py client demo`.
+    entrypoint: ["python", "run.py", "client"]
     restart: "no"
     environment:
       COLLAB_GATEWAY: gateway:50070
