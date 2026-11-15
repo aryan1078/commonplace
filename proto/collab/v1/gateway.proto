@@ -5,106 +5,229 @@ package collab.v1;
 import "collab/v1/assist.proto";
 import "collab/v1/common.proto";
 import "collab/v1/document.proto";
+import "collab/v1/presence.proto";
 
-option go_package = "github.com/Krisha-cmd/collab-platform/gen/go/collab/v1;collabv1";
-
-// Messages between the browser and the gateway.
+// The only service clients talk to. It maps the handout's client functions
+// onto the internal services:
+//   login(username, password)  -> Login
+//   logout(token)              -> Logout
+//   post(token, type, data)    -> Post   (type = which `data` field is set)
+//   get(token, type, params)   -> Get    (type = which `params` field is set)
+// plus two streams: Join (live edits and presence for one document) and
+// Assist (LLM features, answered by the separate LLM server).
 //
-// The browser opens one WebSocket per open document:
-//   ws://<gateway>/ws?doc=<doc_id>&name=<display name>
-// Every WebSocket message is one ClientMessage (browser -> gateway) or one
-// ServerMessage (gateway -> browser), encoded as JSON using the standard
-// protobuf JSON mapping (field names in lowerCamelCase, 64-bit numbers as
-// strings).
-//
-// Right after connecting, the gateway sends a ServerMessage with `joined`,
-// then streams every committed operation after that snapshot as `operation`
-// messages, and sends `presence` whenever someone joins, leaves or moves.
+// Every call except Login needs a token from Login. Failures are reported in
+// the `status` field of the reply (or of the stream's last event), not as
+// gRPC errors, so a client sees one consistent set of outcomes.
+service CollabService {
+  rpc Login(LoginRequest) returns (LoginResponse);
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
+  rpc Post(PostRequest) returns (PostResponse);
+  rpc Get(GetRequest) returns (GetResponse);
 
-message ClientMessage {
-  // Chosen by the browser. Replies to this message carry the same value,
-  // so the browser can match them up. Not needed for cursor updates.
-  string request_id = 1;
+  // Opens a document. The first event is `joined` (with the snapshot); after
+  // it come every operation committed after that snapshot and every presence
+  // change, until the client cancels, logs out or the token expires (the
+  // last event is then `closed`).
+  rpc Join(JoinRequest) returns (stream JoinEvent);
 
-  oneof kind {
-    SubmitOperationsRequest submit = 2;
-    CursorUpdate cursor = 3;
-    CheckGrammarRequest check_grammar = 4;
-    AutocompleteRequest autocomplete = 5;
-    SummarizeRequest summarize = 6;
-    EnhanceRequest enhance = 7;
-    // Stops a streaming request (autocomplete or summarize) that is still running.
-    CancelRequest cancel = 8;
+  // One LLM request. Streaming tasks (autocomplete, summarize) send several
+  // events; the others send one.
+  rpc Assist(AssistRequest) returns (stream AssistEvent);
+}
+
+enum Status {
+  OK = 0;
+  // Login only: unknown user or wrong password (deliberately not saying which).
+  INVALID_CREDENTIALS = 1;
+  // The token is missing, unknown, expired or logged out.
+  UNAUTHENTICATED = 2;
+  // The edit was made against an old revision. Fetch the history after your
+  // base revision, rebase the edit and send it again with the same op_id.
+  STALE_REVISION = 3;
+  INVALID_ARGUMENT = 4;
+  // A backend (document cluster or LLM server) could not answer. Retrying
+  // an edit with the same op_id is always safe.
+  UNAVAILABLE = 5;
+  NOT_FOUND = 6;
+}
+
+// ---------------------------------------------------------------------------
+// Login / Logout
+// ---------------------------------------------------------------------------
+
+message LoginRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  Status status = 1;
+  // Set only when status is OK.
+  string token = 2;
+  int64 expires_at_unix_ms = 3;
+  string message = 4;
+}
+
+message LogoutRequest {
+  string token = 1;
+}
+
+message LogoutResponse {
+  Status status = 1;
+}
+
+// ---------------------------------------------------------------------------
+// Post: send new data
+// ---------------------------------------------------------------------------
+
+message PostRequest {
+  string token = 1;
+  // The Join session this post comes from. Required for cursor updates;
+  // optional for edits (when set, presence shows the user as editing).
+  string session_id = 2;
+
+  oneof data {
+    // The gateway overwrites every operation's doc_id with edit.doc_id and
+    // its user_id with the token's user, so nobody can edit as someone else.
+    SubmitOperationsRequest edit = 3;
+    CursorUpdate cursor = 4;
   }
 }
 
-message ServerMessage {
-  // The request_id of the ClientMessage this answers; empty for messages the
-  // gateway sends on its own (joined, operation, presence).
-  string request_id = 1;
+message PostResponse {
+  Status status = 1;
+  string message = 2;
+  // Set for a successful edit.
+  SubmitOperationsResponse edit = 3;
+  // Set when status is STALE_REVISION: the document's revision now.
+  uint64 current_revision = 4;
+}
 
-  oneof kind {
-    JoinedEvent joined = 2;
-    SubmitOperationsResponse submitted = 3;
-    // A committed operation, from anyone (including this browser).
-    SubscribeResponse operation = 4;
-    PresenceEvent presence = 5;
-    CheckGrammarResponse grammar = 6;
-    // Streamed: several arrive for one request, followed by stream_end.
-    AutocompleteResponse autocomplete = 7;
-    // Streamed: several arrive for one request, followed by stream_end.
-    SummarizeResponse summary = 8;
-    EnhanceResponse enhanced = 9;
-    StreamEnd stream_end = 10;
-    ErrorEvent error = 11;
+// ---------------------------------------------------------------------------
+// Get: read data
+// ---------------------------------------------------------------------------
+
+message GetRequest {
+  string token = 1;
+
+  oneof params {
+    SnapshotParams snapshot = 2;
+    HistoryParams history = 3;
+    PresenceParams presence = 4;
+    DocumentsParams documents = 5;
   }
+}
+
+message SnapshotParams {
+  string doc_id = 1;
+}
+
+message HistoryParams {
+  string doc_id = 1;
+  uint64 from_revision = 2;
+  // 0 means the server's maximum per call (1000); page with from_revision.
+  uint32 limit = 3;
+}
+
+message PresenceParams {
+  string doc_id = 1;
+}
+
+message DocumentsParams {}
+
+// One (id, data) pair of the handout's getResponse.
+message Item {
+  // snapshot: the doc_id; history: the revision; presence: the session_id;
+  // documents: the doc_id.
+  string id = 1;
+
+  oneof data {
+    DocumentSnapshot snapshot = 2;
+    SubscribeResponse operation = 3;
+    Participant participant = 4;
+    DocumentInfo document = 5;
+  }
+}
+
+message GetResponse {
+  Status status = 1;
+  string message = 2;
+  repeated Item items = 3;
+}
+
+// ---------------------------------------------------------------------------
+// Join: live updates for one document
+// ---------------------------------------------------------------------------
+
+message JoinRequest {
+  string token = 1;
+  string doc_id = 2;
 }
 
 message JoinedEvent {
-  // Identifies this connection in presence lists.
+  // Identifies this stream in presence lists and in Post.session_id.
   string session_id = 1;
-  // The display name the gateway will use for this session.
   string name = 2;
-  // The document when the connection opened. Operations after
-  // snapshot.revision follow as `operation` messages.
+  // The document when the stream opened. Operations after snapshot.revision
+  // follow as `operation` events, with no gaps.
   DocumentSnapshot snapshot = 3;
 }
 
-// Where a user's cursor or selection is. anchor == head means a plain cursor.
-message CursorUpdate {
-  // The revision the positions refer to.
-  uint64 revision = 1;
-  uint32 anchor = 2;
-  uint32 head = 3;
+message ClosedEvent {
+  Status status = 1;
+  string reason = 2;
 }
 
-message Participant {
-  string session_id = 1;
-  string name = 2;
-  // A CSS colour for this user's cursor and name tag, e.g. "#e8590c".
-  string color = 3;
-  // Not set until the user's first cursor update.
-  CursorUpdate cursor = 4;
-  // When this user last submitted an edit (milliseconds since 1970, gateway
-  // clock). 0 if never. Browsers show "editing" if it was recent.
-  int64 last_edit_unix_ms = 5;
+message JoinEvent {
+  oneof event {
+    JoinedEvent joined = 1;
+    // A committed operation, from anyone (including this client).
+    SubscribeResponse operation = 2;
+    PresenceEvent presence = 3;
+    ClosedEvent closed = 4;
+  }
 }
 
-// Everyone currently connected to the document, including the receiver.
-message PresenceEvent {
-  repeated Participant participants = 1;
+// ---------------------------------------------------------------------------
+// Assist: LLM features
+// ---------------------------------------------------------------------------
+
+message AskRequest {
+  // A question about the document; answered only from the document's text.
+  string question = 1;
 }
 
-message CancelRequest {
-  // The request_id of the streaming request to stop.
-  string target_request_id = 1;
+message AssistRequest {
+  string token = 1;
+  // Echoed in every event.
+  string request_id = 2;
+  // The document the request is about. Summarize and ask load its current
+  // text here; for the other tasks the client sends the text itself.
+  string doc_id = 3;
+
+  oneof task {
+    CheckGrammarRequest check_grammar = 4;
+    AutocompleteRequest autocomplete = 5;
+    EnhanceRequest enhance = 6;
+    // If summarize.document is not set, the gateway loads doc_id.
+    SummarizeRequest summarize = 7;
+    AskRequest ask = 8;
+  }
 }
 
-message StreamEnd {}
-
-message ErrorEvent {
-  // The gRPC status code name, e.g. "ABORTED" (stale edit: rebase and resend),
-  // "INVALID_ARGUMENT", "UNAVAILABLE", "RESOURCE_EXHAUSTED".
-  string code = 1;
+message AssistEvent {
+  Status status = 1;
   string message = 2;
+  string request_id = 3;
+
+  oneof result {
+    CheckGrammarResponse grammar = 4;
+    // Streamed: join the deltas.
+    AutocompleteResponse autocomplete = 5;
+    EnhanceResponse enhanced = 6;
+    // Streamed: join the deltas.
+    SummarizeResponse summary = 7;
+    GetLLMAnswerResponse answer = 8;
+  }
 }

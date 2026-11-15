@@ -2,9 +2,6 @@ syntax = "proto3";
 
 package collab.v1;
 
-// Replace "yourname/aos-team8" with your Go module path (the "module" line in go.mod).
-option go_package = "github.com/Krisha-cmd/collab-platform/gen/go/collab/v1;collabv1";
-
 // ---------------------------------------------------------------------------
 // Conventions shared by every message in the collab.v1 package
 // ---------------------------------------------------------------------------
@@ -56,7 +53,7 @@ message OpId {
 }
 
 // One edit by one user. This is the entry that goes into the log
-// (a local list in Milestone 1, the Raft log in Milestone 2).
+// (the replicated Raft log; a plain local list in single-node mode).
 message Operation {
   OpId op_id = 1;
   string doc_id = 2;

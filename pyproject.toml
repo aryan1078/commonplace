@@ -1,0 +1,15 @@
+# Only tool configuration lives here: the services are run from source with
+# `python run.py ...`, not installed as packages.
+
+[tool.pytest.ini_options]
+# Every service imports the generated code as `collab.v1` and its own package
+# by name, so all source roots go on sys.path.
+pythonpath = [
+    "gen/python",
+    "services/docnode/src",
+    "services/gateway/src",
+    "services/assist/src",
+    "clients",
+]
+testpaths = ["services", "clients", "tests"]
+addopts = "-q"

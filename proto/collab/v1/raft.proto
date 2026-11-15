@@ -2,4 +2,3 @@ syntax = "proto3";
 
 package collab.v1;
 
-option go_package = "github.com/Krisha-cmd/collab-platform/gen/go/collab/v1;collabv1";

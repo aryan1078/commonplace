@@ -4,17 +4,19 @@ package collab.v1;
 
 import "collab/v1/common.proto";
 
-option go_package = "github.com/Krisha-cmd/collab-platform/gen/go/collab/v1;collabv1";
-
 // Stores documents and their ordered history of operations.
 //
 // Conflict rule: an operation is accepted only if its base_revision is the
 // document's current revision. Otherwise the whole request is rejected with
-// status ABORTED, and the client rebases its edits onto the newer revisions
-// (which it receives through Subscribe) and sends them again.
+// status ABORTED (trailing metadata "current-revision" says where the document
+// is), and the client rebases its edits onto the newer revisions and sends
+// them again.
 //
-// In Milestone 2 every node runs this service on top of Raft. The API stays
-// the same; SubmitOperations just returns once a majority has the edit.
+// Every docnode runs this service on top of Raft. SubmitOperations returns
+// once a majority of nodes has the batch in its log and this node has applied
+// it. A follower answers SubmitOperations with FAILED_PRECONDITION and puts
+// the leader's address in the trailing metadata key "leader-addr" (empty if
+// no leader is known yet). Reads are served from the node's own applied state.
 service DocumentService {
   // Returns a document's current text and revision. A document that has never
   // been edited exists implicitly: empty, at revision 0.
@@ -22,7 +24,8 @@ service DocumentService {
 
   // Applies a batch of operations to one document, all or nothing.
   // Errors: ABORTED if an operation is based on an old revision,
-  // INVALID_ARGUMENT if an operation is malformed.
+  // INVALID_ARGUMENT if an operation is malformed, FAILED_PRECONDITION if
+  // this node is not the Raft leader.
   rpc SubmitOperations(SubmitOperationsRequest) returns (SubmitOperationsResponse);
 
   // Streams every operation committed after from_revision, in order: first
@@ -31,6 +34,13 @@ service DocumentService {
   // op_id.client_id. If the stream ends with UNAVAILABLE, subscribe again
   // from the last revision received.
   rpc Subscribe(SubscribeRequest) returns (stream SubscribeResponse);
+
+  // Version history: the committed operations after from_revision, oldest
+  // first, at most `limit` of them.
+  rpc GetHistory(GetHistoryRequest) returns (GetHistoryResponse);
+
+  // Every document that has at least one committed operation.
+  rpc ListDocuments(ListDocumentsRequest) returns (ListDocumentsResponse);
 }
 
 message GetSnapshotRequest {
@@ -66,9 +76,38 @@ message SubscribeRequest {
   uint64 from_revision = 2;
 }
 
+// One committed operation. Used by Subscribe and by GetHistory.
 message SubscribeResponse {
   // The revision this operation produced. operation.base_revision is always
   // revision - 1.
   uint64 revision = 1;
   Operation operation = 2;
+}
+
+message GetHistoryRequest {
+  string doc_id = 1;
+  // Operations that produced revisions from_revision+1, from_revision+2, ...
+  uint64 from_revision = 2;
+  // At most this many operations. 0 means the server's maximum (1000).
+  uint32 limit = 3;
+}
+
+message GetHistoryResponse {
+  repeated SubscribeResponse operations = 1;
+  // The document's current revision, so the caller knows whether to page on.
+  uint64 revision = 2;
+}
+
+message ListDocumentsRequest {}
+
+message DocumentInfo {
+  string doc_id = 1;
+  uint64 revision = 2;
+  // Length of the current text in UTF-16 code units.
+  uint32 length = 3;
+}
+
+message ListDocumentsResponse {
+  // Sorted by doc_id.
+  repeated DocumentInfo documents = 1;
 }

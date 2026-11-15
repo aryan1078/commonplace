@@ -2,4 +2,39 @@ syntax = "proto3";
 
 package collab.v1;
 
-option go_package = "github.com/Krisha-cmd/collab-platform/gen/go/collab/v1;collabv1";
+// Presence: who is connected to a document and where their cursors are.
+//
+// Presence lives only in the gateway's memory. It is not replicated: it
+// describes connections to this gateway, which disappear if it restarts.
+// Every update carries the full participant list, so it may be lossy: a
+// missed update is corrected by the next one.
+
+// Where a user's cursor or selection is. anchor == head means a plain cursor.
+message CursorUpdate {
+  // The revision the positions refer to.
+  uint64 revision = 1;
+  uint32 anchor = 2;
+  uint32 head = 3;
+}
+
+message Participant {
+  // One Join stream. A user with two open streams appears twice.
+  string session_id = 1;
+  // The username.
+  string name = 2;
+  // A colour for this user's cursor and name tag, e.g. "#e8590c".
+  string color = 3;
+  // Not set until the user's first cursor update.
+  CursorUpdate cursor = 4;
+  // When this user last submitted an edit (milliseconds since 1970, gateway
+  // clock). 0 if never.
+  int64 last_edit_unix_ms = 5;
+  // True if the user edited within the last few seconds.
+  bool editing = 6;
+}
+
+// Everyone currently connected to the document, including the receiver.
+message PresenceEvent {
+  string doc_id = 1;
+  repeated Participant participants = 2;
+}

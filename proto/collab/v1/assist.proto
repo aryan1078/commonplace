@@ -4,9 +4,6 @@ package collab.v1;
 
 import "collab/v1/common.proto";
 
-// Must match the go_package in common.proto.
-option go_package = "github.com/Krisha-cmd/collab-platform/gen/go/collab/v1;collabv1";
-
 // The LLM service. It is stateless and read-only: it never changes a document.
 // It returns suggestions; when a user accepts one, the client sends it as an
 // ordinary Operation through the document service (and so through Raft).
@@ -23,6 +20,10 @@ service AssistService {
 
   // Rewrites a selected piece of text in a chosen style.
   rpc Enhance(EnhanceRequest) returns (EnhanceResponse);
+
+  // The handout's getLLMAnswer(requestId, query, context): answers a question
+  // using only the given document as its source.
+  rpc GetLLMAnswer(GetLLMAnswerRequest) returns (GetLLMAnswerResponse);
 }
 
 // ---------------------------------------------------------------------------
@@ -157,4 +158,23 @@ message EnhanceResponse {
   string request_id = 1;
   // Usually a single suggestion replacing the whole selection.
   repeated Suggestion suggestions = 2;
+}
+
+// ---------------------------------------------------------------------------
+// GetLLMAnswer
+// ---------------------------------------------------------------------------
+
+message GetLLMAnswerRequest {
+  string request_id = 1;
+  string query = 2;
+  // The document the question is about. Long documents are trimmed to their
+  // most recent part before they reach the model.
+  DocumentSnapshot context = 3;
+}
+
+message GetLLMAnswerResponse {
+  string request_id = 1;
+  string answer = 2;
+  // The revision of the document the answer was based on.
+  uint64 revision = 3;
 }
