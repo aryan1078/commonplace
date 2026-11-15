@@ -16,7 +16,7 @@ def test_demo_runs_every_step(capsys):
     assert asyncio.run(main()) == 0
     out = capsys.readouterr().out
     for expected in ("INVALID_CREDENTIALS", "after 2 attempt(s)", "identical: True", "'i' -> 'I'",
-                     "Summary:", "The document does not say.", "closed: UNAUTHENTICATED",
+                     "Summary:", "[bob sees] revision 1", "The document does not say.", "closed: UNAUTHENTICATED",
                      "old token -> UNAUTHENTICATED", "agree: True"):
         assert expected in out, expected
 

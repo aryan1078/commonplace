@@ -69,9 +69,9 @@ async def run_demo(address: str) -> int:
         print(f"  presence seen by alice: {who(a)}")
 
         step("3. Alice types the meeting notes; everyone receives them live")
-        await a.edit(Change(0, 0, NOTES))
-        await b.wait_for_revision(a.revision)
-        await c.wait_for_revision(a.revision)
+        typed = await a.edit(Change(0, 0, NOTES))
+        for v in views:
+            await v.wait_for_revision(typed.revision)
         show(b, "bob sees")
 
         step("4. Cursors and 'editing' status (presence)")
