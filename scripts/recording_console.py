@@ -73,7 +73,7 @@ class RecordingConsole:
         env = {**os.environ, "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1"}
         with (ROOT / "logs/recording-tests.txt").open("w", encoding="utf8") as output:
             process = subprocess.Popen([sys.executable, "-m", "pytest", "-o", "addopts=", "-o",
-                "faulthandler_timeout=25", "-q"], cwd=ROOT, env=env,
+                "faulthandler_timeout=25", "-vv"], cwd=ROOT, env=env,
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf8", errors="replace")
             for line in process.stdout:
                 print(line, end="", flush=True)

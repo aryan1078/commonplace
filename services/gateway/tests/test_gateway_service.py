@@ -2,7 +2,10 @@
 
 import asyncio
 
+import grpc
+
 from collab.v1 import assist_pb2, common_pb2, document_pb2, gateway_pb2, presence_pb2
+from gateway.docs import DocsClient
 from stack import running_stack
 
 S = gateway_pb2
@@ -84,8 +87,26 @@ def test_edit_identity_and_stale_revision():
     run(test)
 
 
-def test_join_streams_snapshot_operations_and_presence():
+def test_join_streams_snapshot_operations_and_presence(monkeypatch):
     async def test(stack):
+        # The Join snapshot succeeds, then discovery for the subscription
+        # crosses an election. The existing Join must survive both failures.
+        original_snapshot = DocsClient.snapshot
+        calls = 0
+        recovered = asyncio.Event()
+
+        async def interrupted_discovery(self, doc_id):
+            nonlocal calls
+            calls += 1
+            if calls in (2, 3):
+                code = grpc.StatusCode.UNAVAILABLE if calls == 2 else grpc.StatusCode.DEADLINE_EXCEEDED
+                raise grpc.aio.AioRpcError(code, (), (), "leader election")
+            snapshot = await original_snapshot(self, doc_id)
+            if calls >= 4:
+                recovered.set()
+            return snapshot
+
+        monkeypatch.setattr(DocsClient, "snapshot", interrupted_discovery)
         stub = stack.stub
         alice, bob = await login(stub, "alice"), await login(stub, "bob")
         await stub.Post(edit(alice, "doc", "c-a", 1, 0, 0, "hi"))
@@ -93,6 +114,7 @@ def test_join_streams_snapshot_operations_and_presence():
         a_stream = stub.Join(gateway_pb2.JoinRequest(token=alice, doc_id="doc"))
         joined = (await next_event(a_stream, "joined")).joined
         assert (joined.name, joined.snapshot.text, joined.snapshot.revision) == ("alice", "hi", 1)
+        await asyncio.wait_for(recovered.wait(), 3)
 
         b_stream = stub.Join(gateway_pb2.JoinRequest(token=bob, doc_id="doc"))
         b_session = (await next_event(b_stream, "joined")).joined.session_id

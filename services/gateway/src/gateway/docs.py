@@ -88,13 +88,17 @@ class DocsClient:
         return list(reply.documents)
 
     async def subscribe(self, doc_id: str, from_revision: int) -> AsyncIterator[document_pb2.SubscribeResponse]:
-        """Every operation committed after from_revision, in order. Raises
-        grpc.aio.AioRpcError if the document service goes away."""
+        """Committed operations in order, reconnecting after transient failures.
+
+        Leader discovery and the stream itself can both fail during elections.
+        Retain the last delivered revision across either kind of interruption.
+        """
         while True:
-            await self.snapshot(doc_id)
-            stream = self._stubs[self._preferred].Subscribe(
-                document_pb2.SubscribeRequest(doc_id=doc_id, from_revision=from_revision))
+            stream = None
             try:
+                await self.snapshot(doc_id)
+                stream = self._stubs[self._preferred].Subscribe(
+                    document_pb2.SubscribeRequest(doc_id=doc_id, from_revision=from_revision))
                 async for msg in stream:
                     if msg.revision > from_revision:
                         from_revision = msg.revision
@@ -104,5 +108,6 @@ class DocsClient:
                                       grpc.StatusCode.DEADLINE_EXCEEDED):
                     raise
             finally:
-                stream.cancel()
+                if stream is not None:
+                    stream.cancel()
             await asyncio.sleep(0.1)

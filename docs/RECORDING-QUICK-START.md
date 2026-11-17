@@ -37,6 +37,8 @@ BEFORE RECORDING
 
 6. Put 03 Read-along script.txt on a phone or print it.
    It has every spoken paragraph and the exact matching clicks.
+   Aryan operates the mouse throughout. Reshma reads the even sections.
+   In Notepad you can print the script using Ctrl+P.
    If you only have the laptop, read between sections in Notepad and trim those pauses later.
    ChatGPT can now be closed.
 

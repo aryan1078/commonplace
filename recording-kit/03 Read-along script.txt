@@ -4,6 +4,9 @@ Approximately nine edited minutes.
 Put this file on a phone or print it.
 DO is an action for the operator; do not read it aloud.
 Read only the words under SAY. Odd sections: Aryan. Even sections: Reshma.
+Aryan operates the mouse and numbered controls throughout.
+The timestamps are approximate final-video positions, not deadlines.
+Keep recording during waits or mistakes; remove those pauses while editing.
 
 =================================================================
 SECTION 1 | 00:00–00:45 | ARYAN
@@ -33,7 +36,14 @@ Two accounts and live propagation
 =================================================================
 
 DO:
-Choose Alice in the left window and Bob in the right, then Sign in. As Alice create Video Demo 01. Click the large blank writing area below its title and Ctrl+V to paste 04 Demo notes. Wait for All changes saved. In Bob refresh the document list and open Video Demo 01. Add in Alice: Alice: We will demonstrate a leader failure. Wait for it to appear for Bob; point to A/B presence.
+1. Left window: type username alice and password alice123, then click Sign in.
+2. Right window: type username bob and password bob123, then click Sign in.
+3. Left window: click + New document, type Video Demo 01, then click Create document.
+4. Click the large blank writing area BELOW the document title. Press Ctrl+V to paste the sample notes copied before recording.
+5. Wait for All changes saved.
+6. Right window: click the circular arrow beside Documents, then click Video Demo 01.
+7. Left window: add a new line: Alice: We will demonstrate a leader failure.
+8. Wait for Bob to receive it. Point to the A/B presence circles.
 
 SAY:
 I’ll sign in as Alice in this window and Bob in the other. These are two independent authenticated sessions, even though we are recording on one laptop. The gateway verifies password hashes and issues a session token. It also supplies the author identity for every edit. Alice now creates Video Demo 01 and enters our meeting notes. Bob opens the same document. When Alice adds this line, it appears for Bob, and both users are visible in the presence indicators. The saved label means the edit was acknowledged by the server.
@@ -55,7 +65,12 @@ Grammar, applying a suggestion, and continuation
 =================================================================
 
 DO:
-Open Writing assistant and show Local CPU language model. Click Check grammar; wait. Apply the We has -> We have suggestion. Show the corrected sentence and History. Return to the assistant, click just after Next steps: in the document, and choose Continue writing. Show the suggestion without applying it.
+1. In the maximized Alice window click Writing assistant (top right).
+2. Show Local CPU language model, then click Check grammar. Wait for the response.
+3. Click Apply on the suggestion changing We has to We have. Show the corrected sentence.
+4. Click History to show the new edit, then return to Writing assistant.
+5. Click just after Next steps: in the document body. Click Continue writing.
+6. Wait for the suggestion and show it. Do not apply this continuation. Cut the idle AI waiting time later.
 
 SAY:
 The writing assistant is a separate service, rather than part of the consensus algorithm. First, we ask it to check this document. It proposes changing ‘We has’ to ‘We have’. We review that replacement before applying it. Grammar combines model output with explicit checks for common mistakes. Applying the suggestion creates another ordinary, replicated edit, which we can see in history. Next, we place the cursor after ‘Next steps’ and request a continuation. The generated text is a suggestion. It does not silently overwrite the document.
@@ -88,7 +103,12 @@ Kill the elected leader and keep editing
 =================================================================
 
 DO:
-Read the first sentence, then in controls press Enter for the menu, type 2 and Enter. Keep the real stop/election sequence in the video. Say Here the failed voter... only AFTER the new leader appears. Minimize controls. Add in Alice: Saved after leader failure. Wait for All changes saved and show the line in Bob.
+1. Reshma reads the first sentence.
+2. In controls press Enter for the menu, type 2 and Enter.
+3. Keep the real stop/election sequence in the video. Say Here the failed voter... only AFTER the new leader appears.
+4. Minimize controls. Add this new line in Alice: Saved after leader failure.
+5. Wait for All changes saved.
+6. To show both copies again, press Windows+Left in Alice. Bring Bob forward and press Windows+Right. Show the new line in Bob.
 
 SAY:
 We will now stop the document server that is actually leader. The browser, gateway and other two voters keep running. After missing heartbeats, a follower becomes a candidate, increments its term and sends RequestVote RPCs. A candidate needs a majority, and voters check that its log is sufficiently up to date. Randomized timeouts reduce split votes. Here the failed voter is unreachable, and a new leader appears in a higher term. We can now save another line and see it in Bob’s window. Two survivors still form a majority of the original three voters.
