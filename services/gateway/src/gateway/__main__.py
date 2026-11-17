@@ -31,6 +31,8 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser.add_argument("--docnodes", default="localhost:50051", help="document service address")
     parser.add_argument("--assist", default="localhost:50061", help="Assist (LLM) service address")
     parser.add_argument("--users", type=Path, default=DEFAULT_USERS, help="users.json with password hashes")
+    parser.add_argument("--tls-cert", type=Path)
+    parser.add_argument("--tls-key", type=Path)
     return parser.parse_args(argv)
 
 
@@ -50,7 +52,15 @@ async def serve(args: argparse.Namespace) -> None:
     reflection.enable_server_reflection(
         [gateway_pb2.DESCRIPTOR.services_by_name["CollabService"].full_name, reflection.SERVICE_NAME], server
     )
-    server.add_insecure_port(f"{args.host}:{args.port}")
+    if bool(args.tls_cert) != bool(args.tls_key):
+        raise ValueError("--tls-cert and --tls-key must be supplied together")
+    if args.tls_cert:
+        credentials = grpc.ssl_server_credentials([(args.tls_key.read_bytes(), args.tls_cert.read_bytes())])
+        bound = server.add_secure_port(f"{args.host}:{args.port}", credentials)
+    else:
+        bound = server.add_insecure_port(f"{args.host}:{args.port}")
+    if not bound:
+        raise RuntimeError("gateway could not bind its port")
     await server.start()
     log.info("gateway listening on %s:%d (docnodes: %s, assist: %s, %d users, token TTL %.0fs)",
              args.host, args.port, args.docnodes, args.assist, len(users), ttl)

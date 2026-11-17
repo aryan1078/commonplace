@@ -33,6 +33,16 @@ class ScriptedProvider(Provider):
         yield ""
 
 
+def test_common_checks_supplement_empty_model_output_with_utf16_ranges():
+    reply = asyncio.run(check_grammar(ScriptedProvider('{"fixes": []}'),
+                                      context("🎉 We has notes and i agree."), None))
+    assert [(s.original, s.replacement) for s in reply.suggestions] == [("We has", "We have"), ("i", "I")]
+    text = "🎉 We has notes and i agree.".encode("utf-16-le")
+    for suggestion in reply.suggestions:
+        r = suggestion.anchor.range
+        assert text[2*r.start:2*r.end].decode("utf-16-le") == suggestion.original
+
+
 def test_fake_provider_end_to_end():
     reply = asyncio.run(check_grammar(FakeProvider(), context("so i went", start=100), None))
     [s] = reply.suggestions

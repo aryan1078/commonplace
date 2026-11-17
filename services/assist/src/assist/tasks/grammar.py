@@ -123,4 +123,26 @@ async def check_grammar(
                 kind=_KINDS.get(source.kind.lower(), assist_pb2.SUGGESTION_KIND_GRAMMAR),
             )
         )
+    # Model suggestions can miss simple, unambiguous agreement errors. Keep
+    # these explicit checks visible as reviewable suggestions on the same anchor.
+    for match in re.finditer(r"\bi\b|\b(?:we|they|you) (?:has|was)\b", ctx.text, re.IGNORECASE):
+        original = match.group(0)
+        if original == "i":
+            replacement, reason = "I", "Capitalize the pronoun I"
+        elif original.lower().endswith((" has", " was")):
+            subject, verb = original.rsplit(" ", 1)
+            replacement = subject + (" have" if verb.lower() == "has" else " were")
+            reason = "Subject-verb agreement"
+        else:
+            continue
+        start = base + len(ctx.text[:match.start()].encode("utf-16-le")) // 2
+        end = base + len(ctx.text[:match.end()].encode("utf-16-le")) // 2
+        if any(start < s.anchor.range.end and end > s.anchor.range.start for s in response.suggestions):
+            continue
+        response.suggestions.append(assist_pb2.Suggestion(
+            anchor=common_pb2.TextAnchor(doc_id=ctx.anchor.doc_id, revision=ctx.anchor.revision,
+                                        range=common_pb2.TextRange(start=start, end=end)),
+            original=original, replacement=replacement, reason=reason,
+            kind=assist_pb2.SUGGESTION_KIND_GRAMMAR))
+    response.suggestions.sort(key=lambda suggestion: suggestion.anchor.range.start)
     return response

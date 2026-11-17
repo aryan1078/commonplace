@@ -26,6 +26,7 @@ COMMANDS = {
     "assist": "assist.__main__",
     "gateway": "gateway.__main__",
     "client": "collab_client.__main__",
+    "desktop": "collab_client.desktop",
 }
 
 

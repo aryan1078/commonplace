@@ -3,6 +3,12 @@ from .base import Provider, ProviderError, ProviderTimeout, RateLimited
 
 
 def make_provider(settings: Settings) -> Provider:
+    if settings.provider == "transformers":
+        from .transformers_cpu import TransformersCPUProvider
+        return TransformersCPUProvider()
+    if settings.provider == "llama_cpp":
+        from .local_cpu import LocalCPUProvider
+        return LocalCPUProvider()
     if settings.provider == "fake":
         from .fake import FakeProvider
 

@@ -6,6 +6,7 @@ machine, and all writes go through the `Log` (local or Raft).
 """
 
 import logging
+import asyncio
 
 import grpc
 
@@ -32,7 +33,16 @@ class DocumentServer(document_pb2_grpc.DocumentServiceServicer):
         self._log = log
         self._sm = sm
 
+    async def _read(self, context):
+        if hasattr(self._log, "read_barrier"):
+            try:
+                await self._log.read_barrier()
+            except NotLeader as err:
+                await context.abort(grpc.StatusCode.FAILED_PRECONDITION, str(err),
+                                    trailing_metadata=((LEADER_KEY, err.leader),))
+
     async def GetSnapshot(self, request, context):
+        await self._read(context)
         await _require_doc_id(request.doc_id, context)
         text, revision = self._sm.snapshot(request.doc_id)
         return document_pb2.GetSnapshotResponse(
@@ -61,6 +71,7 @@ class DocumentServer(document_pb2_grpc.DocumentServiceServicer):
         )
 
     async def Subscribe(self, request, context):
+        await self._read(context)
         await _require_doc_id(request.doc_id, context)
         try:
             sub = self._sm.subscribe(request.doc_id, request.from_revision, SUBSCRIBE_BUFFER)
@@ -69,7 +80,15 @@ class DocumentServer(document_pb2_grpc.DocumentServiceServicer):
         try:
             for c in sub.backlog:
                 yield committed_to_proto(c)
-            while (c := await sub.next()) is not None:
+            while True:
+                try:
+                    c = await asyncio.wait_for(sub.next(), 0.5)
+                except TimeoutError:
+                    if getattr(self._log, "role", "leader") != "leader":
+                        await context.abort(grpc.StatusCode.UNAVAILABLE, "leadership changed")
+                    continue
+                if c is None:
+                    break
                 yield committed_to_proto(c)
             if isinstance(sub.error, SubscriberTooSlow):
                 await context.abort(
@@ -80,6 +99,7 @@ class DocumentServer(document_pb2_grpc.DocumentServiceServicer):
             sub.close()  # also runs when the client goes away (the task is cancelled)
 
     async def GetHistory(self, request, context):
+        await self._read(context)
         await _require_doc_id(request.doc_id, context)
         limit = min(request.limit or MAX_HISTORY, MAX_HISTORY)
         try:
@@ -92,6 +112,7 @@ class DocumentServer(document_pb2_grpc.DocumentServiceServicer):
         )
 
     async def ListDocuments(self, request, context):
+        await self._read(context)
         return document_pb2.ListDocumentsResponse(
             documents=[
                 document_pb2.DocumentInfo(doc_id=d.doc_id, revision=d.revision, length=d.length)

@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Commonplace is a collaborative document editor with Python gRPC services, three Raft replicas and local CPU writing assistance. An Advanced Operating Systems project.">
+  <title>Commonplace · Collaborative editing with Raft</title>
+  <link rel="stylesheet" href="site.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="wordmark" href="./">commonplace</a>
+    <nav aria-label="Project links">
+      <a href="https://github.com/aryan1078/commonplace">Code</a>
+      <a href="https://github.com/aryan1078/commonplace/blob/main/docs/SETUP.md">Setup</a>
+      <a href="https://github.com/aryan1078/commonplace/raw/refs/heads/main/docs/Commonplace-project.pptx">Slides ↗</a>
+    </nav>
+  </header>
+  <main>
+    <section class="intro" aria-labelledby="title">
+      <p class="course">CS G623 · ADVANCED OPERATING SYSTEMS · PROJECT C</p>
+      <h1 id="title">A shared document editor<br>built around Raft.</h1>
+      <p class="lead">Write in the same document, see your teammates' changes and return to every saved version. Three document replicas keep an agreed history through a server failure.</p>
+      <div class="intro-actions">
+        <a class="button" href="https://github.com/aryan1078/commonplace/archive/refs/heads/main.zip">Download the source <span>↓</span></a>
+        <a class="text-link" href="https://github.com/aryan1078/commonplace#run-it">Run the demo →</a>
+      </div>
+      <p class="platform">Python 3.11 · Windows desktop client · gRPC services</p>
+    </section>
+    <figure class="product">
+      <img src="assets/editor.png" alt="The Commonplace desktop app with a shared meeting note, saved version indicator and local writing assistant." width="1707" height="960">
+      <figcaption>The running desktop client, connected to three independent document replicas.</figcaption>
+    </figure>
+    <section class="overview" aria-labelledby="use-title">
+      <div><p class="section-label">IN THE APP</p><h2 id="use-title">Open a document.<br>Work together.</h2></div>
+      <div class="features">
+        <article><h3>Sign in and edit</h3><p>Open two clients with different accounts and choose the same document. Edits save automatically, and presence shows who is there.</p></article>
+        <article><h3>Review the writing</h3><p>Check grammar, rewrite a selection, summarize notes or ask about the document. Review a suggestion before applying it as a saved edit.</p></article>
+        <article><h3>Follow the history</h3><p>See authors and versions in History. Open System status to identify the leader and watch replica progress during recovery.</p></article>
+      </div>
+    </section>
+    <section class="evidence" aria-labelledby="test-title">
+      <div class="test-heading"><p class="section-label">RECOVERY CHECK</p><h2 id="test-title">200 edits, with a leader failure in the middle.</h2></div>
+      <div class="test-content"><p>Eight clients completed 25 edits each while the elected leader was killed. The clients agreed, replaying history reproduced the final text, and the returning replica caught up.</p><p>The check also restarted all three voters on their original disks and retried an already committed operation. The documents and duplicate tracking survived.</p><a class="text-link" href="https://github.com/aryan1078/commonplace/blob/main/docs/results.md">Read the measured results →</a></div>
+    </section>
+    <section class="start" aria-labelledby="start-title">
+      <div><p class="section-label">TRY IT LOCALLY</p><h2 id="start-title">Start with Python 3.11.</h2><p>Download the repository and open <strong>Start Commonplace.cmd</strong>. The launcher installs the client dependencies and opens sign-in.</p><p><strong>Set up real AI.cmd</strong> downloads the local CPU model. Before installation, the assistant clearly labels its responses as demo output.</p></div>
+      <div class="reading"><h3>Project notes</h3><a href="https://github.com/aryan1078/commonplace/blob/main/docs/ARCHITECTURE.md">Architecture and edit flow <span>↗</span></a><a href="https://github.com/aryan1078/commonplace/blob/main/docs/SETUP.md">Setup and recovery commands <span>↗</span></a><a href="https://github.com/aryan1078/commonplace/blob/main/deploy/DEPLOYMENT.md">LAN and remote deployment <span>↗</span></a><a href="https://github.com/aryan1078/commonplace/actions">Automated test runs <span>↗</span></a></div>
+    </section>
+  </main>
+  <footer><p>Commonplace · Advanced Operating Systems, 2026–27</p><p>Python services. Fixed membership of three voters. Full-log replay.</p><a href="https://github.com/aryan1078/commonplace">View the repository ↗</a></footer>
+</body>
+</html>

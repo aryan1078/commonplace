@@ -45,8 +45,9 @@ class EditResult:
 
 
 class CollabClient:
-    def __init__(self, address: str, client_id: str | None = None):
-        self._channel = grpc.aio.insecure_channel(address)
+    def __init__(self, address: str, client_id: str | None = None, *, tls: bool = False, root_certificates: bytes | None = None):
+        self._channel = (grpc.aio.secure_channel(address, grpc.ssl_channel_credentials(root_certificates))
+                         if tls else grpc.aio.insecure_channel(address))
         self.stub = gateway_pb2_grpc.CollabServiceStub(self._channel)
         self.client_id = client_id or uuid.uuid4().hex
         self.token = ""
@@ -86,7 +87,7 @@ class CollabClient:
             request.cursor.CopyFrom(data)
         else:
             raise TypeError(f"cannot post a {type(data).__name__}")
-        return await self.stub.Post(request)
+        return await self.stub.Post(request, timeout=15)
 
     async def get(self, kind: str, **params) -> tuple[int, list[tuple[str, Message]]]:
         """get(token, type, params) -> (status, [(id, data)]).
@@ -101,7 +102,7 @@ class CollabClient:
             "documents": gateway_pb2.DocumentsParams,
         }
         request = gateway_pb2.GetRequest(token=self.token, **{kind: param_types[kind](**params)})
-        reply = await self.stub.Get(request)
+        reply = await self.stub.Get(request, timeout=10)
         return reply.status, [(item.id, getattr(item, item.WhichOneof("data"))) for item in reply.items]
 
     # ------------------------------------------------------------- reads
@@ -127,7 +128,8 @@ class CollabClient:
     # ------------------------------------------------------------- edits
 
     async def edit(self, doc_id: str, changes: Sequence[Change], base_revision: int,
-                   session_id: str = "", max_attempts: int = 100) -> EditResult:
+                   session_id: str = "", max_attempts: int = 100,
+                   operation_id: common_pb2.OpId | None = None) -> EditResult:
         """Submits one edit made against base_revision and makes sure it lands.
 
         On STALE_REVISION it fetches the operations it missed, moves its
@@ -136,16 +138,26 @@ class CollabClient:
         edit is applied exactly once whatever happens to earlier attempts.
         """
         async with self._edit_lock:
-            self._seq += 1
-            op_id = common_pb2.OpId(client_id=self.client_id, seq=self._seq)
+            if operation_id is None:
+                self._seq += 1
+                op_id = common_pb2.OpId(client_id=self.client_id, seq=self._seq)
+            else:
+                op_id = operation_id
+                self._seq = max(self._seq, op_id.seq)
             changes, base = list(changes), base_revision
             for attempt in range(1, max_attempts + 1):
                 op = common_pb2.Operation(op_id=op_id, doc_id=doc_id, base_revision=base, changes=[
                     common_pb2.TextChange(range=common_pb2.TextRange(start=c.start, end=c.end), insert=c.insert)
                     for c in changes
                 ])
-                reply = await self.post(document_pb2.SubmitOperationsRequest(doc_id=doc_id, operations=[op]),
-                                        session_id)
+                try:
+                    reply = await self.post(document_pb2.SubmitOperationsRequest(doc_id=doc_id, operations=[op]),
+                                            session_id)
+                except grpc.aio.AioRpcError as error:
+                    if error.code() not in (grpc.StatusCode.UNAVAILABLE, grpc.StatusCode.DEADLINE_EXCEEDED):
+                        raise
+                    await asyncio.sleep(min(2.0, 0.05 * 2 ** min(attempt, 8)))
+                    continue
                 if reply.status == S.OK:
                     return EditResult(reply.edit.revision, attempt, reply.edit.duplicates > 0)
                 if reply.status == S.STALE_REVISION:

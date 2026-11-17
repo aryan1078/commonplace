@@ -8,6 +8,7 @@ the token, never from the client.
 """
 
 import asyncio
+import os
 import contextlib
 import logging
 import re
@@ -92,6 +93,12 @@ class CollabService(gateway_pb2_grpc.CollabServiceServicer):
         self._sessions: dict[str, JoinSession] = {}
 
     # ------------------------------------------------------------------ auth
+
+    async def ClusterStatus(self, request, context):
+        if self._tokens.validate(request.token) is None:
+            return gateway_pb2.ClusterStatusResponse(status=S.UNAUTHENTICATED)
+        nodes = await self._docs.cluster_status(request.doc_id)
+        return gateway_pb2.ClusterStatusResponse(status=S.OK, nodes=nodes, ai_mode=os.getenv("GATEWAY_AI_MODE", "Configured writing service"))
 
     async def Login(self, request, context):
         if not await self._users.check(request.username, request.password):

@@ -6,6 +6,7 @@ import "collab/v1/assist.proto";
 import "collab/v1/common.proto";
 import "collab/v1/document.proto";
 import "collab/v1/presence.proto";
+import "collab/v1/raft.proto";
 
 // The only service clients talk to. It maps the handout's client functions
 // onto the internal services:
@@ -20,6 +21,7 @@ import "collab/v1/presence.proto";
 // the `status` field of the reply (or of the stream's last event), not as
 // gRPC errors, so a client sees one consistent set of outcomes.
 service CollabService {
+  rpc ClusterStatus(ClusterStatusRequest) returns (ClusterStatusResponse);
   rpc Login(LoginRequest) returns (LoginResponse);
   rpc Logout(LogoutRequest) returns (LogoutResponse);
   rpc Post(PostRequest) returns (PostResponse);
@@ -231,3 +233,6 @@ message AssistEvent {
     GetLLMAnswerResponse answer = 8;
   }
 }
+
+message ClusterStatusRequest { string token = 1; string doc_id = 2; }
+message ClusterStatusResponse { Status status = 1; repeated StatusReply nodes = 2; string ai_mode = 3; }

@@ -1,93 +1,46 @@
-# The whole system on one Docker host, one container per demo node:
-#   node 1: assist (the LLM server) + Ollama
-#   node 2: docnode (document service)
-#   node 3: gateway (application server clients talk to)
-#   node 5: client (run on demand)
-#
-#   docker compose -f deploy/docker-compose.yml up -d --build
-#   docker compose -f deploy/docker-compose.yml run --rm client demo
-#   docker compose -f deploy/docker-compose.yml run --rm client simulate --users 8 --edits 25
-#   docker compose -f deploy/docker-compose.yml run --rm client shell --user alice --doc notes
-#   docker compose -f deploy/docker-compose.yml down
-#
-# LLM, pick one:
-#   * Ollama installed on this machine (the default): assist reaches it at
-#     host.docker.internal:11434. Pull the models there first.
-#   * Ollama in Docker too: add the profile and point assist at it. The first
-#     start downloads the models (about 3 GB) into a volume.
-#       set ASSIST_BASE_URL=http://ollama:11434/v1      (PowerShell: $env:ASSIST_BASE_URL=...)
-#       docker compose -f deploy/docker-compose.yml --profile ollama up -d --build
-#   * No model: set ASSIST_PROVIDER=fake before `up`.
-
 name: collab
-
 x-app: &app
   build:
     context: ..
     dockerfile: Dockerfile
-  image: collab-platform:latest
-  restart: unless-stopped
-
+  image: collab-platform:submission
 services:
-  ollama:
-    image: ollama/ollama:latest
-    profiles: ["ollama"]
-    volumes:
-      - ollama-models:/root/.ollama
-    ports:
-      - "11434:11434"
-    restart: unless-stopped
-
-  # One-shot: downloads the models, then exits.
-  ollama-pull:
-    image: ollama/ollama:latest
-    profiles: ["ollama"]
-    depends_on:
-      - ollama
-    environment:
-      OLLAMA_HOST: ollama:11434
-    entrypoint: ["sh", "-c", "sleep 3 && ollama pull qwen2.5:3b && ollama pull qwen2.5:1.5b"]
-    restart: "no"
-
+  node1:
+    <<: *app
+    command: ["docnode", "--port", "50051", "--address", "node1:50051", "--peers", "node1:50051,node2:50051,node3:50051", "--data-dir", "/data"]
+    volumes: ["node1-data:/data"]
+    ports: ["50051:50051"]
+  node2:
+    <<: *app
+    command: ["docnode", "--port", "50051", "--address", "node2:50051", "--peers", "node1:50051,node2:50051,node3:50051", "--data-dir", "/data"]
+    volumes: ["node2-data:/data"]
+    ports: ["50052:50051"]
+  node3:
+    <<: *app
+    command: ["docnode", "--port", "50051", "--address", "node3:50051", "--peers", "node1:50051,node2:50051,node3:50051", "--data-dir", "/data"]
+    volumes: ["node3-data:/data"]
+    ports: ["50053:50051"]
   assist:
     <<: *app
     command: ["assist"]
     environment:
-      ASSIST_PROVIDER: ${ASSIST_PROVIDER:-ollama}
-      ASSIST_BASE_URL: ${ASSIST_BASE_URL:-http://host.docker.internal:11434/v1}
-      ASSIST_DEFAULT_TIMEOUT_S: "120"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"  # needed on Linux; built in on Docker Desktop
-    ports:
-      - "50061:50061"
-
-  docnode:
-    <<: *app
-    command: ["docnode", "--port", "50051"]
-    ports:
-      - "50051:50051"
-
+      ASSIST_PROVIDER: "${ASSIST_PROVIDER:-llama_cpp}"
+      ASSIST_MODEL_PATH: /models/qwen.gguf
+    volumes: ["../models:/models:ro"]
+    ports: ["50061:50061"]
   gateway:
     <<: *app
-    command: ["gateway", "--port", "50070", "--docnodes", "docnode:50051", "--assist", "assist:50061"]
-    depends_on:
-      - docnode
-      - assist
-    ports:
-      - "50070:50070"
-
+    command: ["gateway", "--docnodes", "node1:50051,node2:50051,node3:50051", "--assist", "assist:50061"]
+    ports: ["50070:50070"]
   client:
     <<: *app
     profiles: ["client"]
-    # `run --rm client demo` then means `python run.py client demo`.
     entrypoint: ["python", "run.py", "client"]
-    restart: "no"
     environment:
       COLLAB_GATEWAY: gateway:50070
-    depends_on:
-      - gateway
     stdin_open: true
     tty: true
-
 volumes:
-  ollama-models:
+  node1-data:
+  node2-data:
+  node3-data:

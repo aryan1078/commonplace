@@ -1,0 +1,56 @@
+
+=== 1. Login (authentication) ===
+  carol with a wrong password -> INVALID_CREDENTIALS
+  alice logged in, token 4xExkmB-...
+  bob logged in, token SW8LAZip...
+  carol logged in, token IZZMGAtf...
+
+=== 2. Everyone opens document demo-1aef5f (Join stream) ===
+  presence seen by alice: alice(#e8590c), bob(#1c7ed6), carol(#2f9e44)
+
+=== 3. Alice types the meeting notes; everyone receives them live ===
+  [bob sees] revision 1: 'Project sync, 16 Nov.\nWe replicate every document with Raft across three nodes. The LLM runs on its own server and only gives suggestions.\nDecision: the demo is on Tuesday at 4 pm and i will record the video.\n'
+
+=== 4. Cursors and 'editing' status (presence) ===
+  presence seen by alice: alice(#e8590c, editing), bob(#1c7ed6 cursor@208), carol(#2f9e44)
+
+=== 5. Alice and Bob edit the SAME revision at the same moment ===
+  both were based on revision 1
+  alice's edit: revision 2 after 1 attempt(s)
+  bob's edit:   revision 3 after 2 attempt(s)
+  (the second one was rejected as STALE_REVISION, rebased onto the new text and resent)
+  [carol sees] revision 3: 'Project sync, 16 Nov. (weekly)\nWe replicate every document with Raft across three nodes. The LLM runs on its own server and only gives suggestions.\nDecision: the demo is on Tuesday at 4 pm and i will record the video.\nAction: bob books the room.\n'
+  all three copies identical: True
+
+=== 6. Version history ===
+  revision 1 by alice: inserted 'Project sync, 16 Nov.\nWe replicate every'
+  revision 2 by alice: inserted ' (weekly)'
+  revision 3 by bob: inserted 'Action: bob books the room.\n'
+  documents on the cluster: demo-1aef5f (rev 3)
+
+=== 7. LLM: grammar check, then accept the first suggestion ===
+
+=== 8. LLM: enhance a sentence (concise) ===
+  'LLM runs on its own server and only gives suggestions.' -> 'AI runs independently and provides feedback.'
+
+=== 9. LLM: summarize the notes (streamed) ===
+  The project sync was replicated using Raft across three nodes, while the LLM operates independently giving suggestions. The demo for the project is scheduled for Tuesday at 4 PM, and Bob will book the room.
+
+=== 10. LLM: autocomplete at the end of the document (streamed) ===
+  ...The demo will showcase our project's latest features to potential clients.
+
+=== 11. LLM: questions answered only from the document (getLLMAnswer) ===
+  Q: When is the demo?
+  A: The demo is scheduled for Tuesday at 4 pm.  (based on revision 3)
+  Q: What is the budget?
+  A: The document does not say.  (based on revision 3)
+
+=== 12. Bob logs out: his live stream is closed and his token stops working ===
+  logout -> OK
+  bob's Join stream closed: UNAUTHENTICATED (logged out)
+  bob replays his old token -> UNAUTHENTICATED
+  presence seen by alice: alice(#e8590c), carol(#2f9e44)
+
+=== Done ===
+  final revision 3; alice, carol and the server agree: True
+

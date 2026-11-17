@@ -6,3 +6,6 @@ __pycache__/
 gen/
 logs/
 data/
+models/
+deploy/certs/
+*.key

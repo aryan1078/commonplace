@@ -1,13 +1,14 @@
 # One image for every Python service; the command picks which one runs:
 #   docker run <image> docnode --port 50051
 #   docker run <image> gateway --docnodes docnode:50051 --assist assist:50061
-FROM python:3.12-slim
+FROM python:3.11-slim
 
 WORKDIR /app
 ENV PYTHONUNBUFFERED=1
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential cmake && rm -rf /var/lib/apt/lists/*
+COPY requirements.txt requirements-ai.txt ./
+RUN pip install --no-cache-dir -r requirements.txt -r requirements-ai.txt
 
 COPY proto proto
 COPY scripts scripts
