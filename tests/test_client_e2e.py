@@ -1,9 +1,12 @@
 """The client library against the whole in-process stack."""
 
 import asyncio
+from unittest.mock import patch
+
+import grpc
 
 from collab.v1 import gateway_pb2
-from collab_client.client import CollabClient
+from collab_client.client import CollabClient, CollabError
 from collab_client.simulate import run_simulation
 from collab_client.textops import Change
 from stack import running_stack
@@ -38,6 +41,41 @@ def test_concurrent_edits_on_the_same_revision_both_land():
             await a.wait_for_revision(3)
             await b.wait_for_revision(3)
             assert a.text == b.text == "Hello, world!"
+
+            # A stale edit must also survive an election interrupting its
+            # history read, without rebasing twice or creating another op_id.
+            for error in (
+                CollabError(S.UNAVAILABLE),
+                grpc.aio.AioRpcError(grpc.StatusCode.DEADLINE_EXCEEDED, (), (), "election"),
+            ):
+                base = (await alice.snapshot("notes")).revision
+                end = len(a.text)
+                await bob.edit("notes", [Change(end, end, "B")], base)
+                original_history, original_post = alice.history, alice.post
+                reads, sent = [], []
+
+                async def interrupted_history(*args, **kwargs):
+                    reads.append(True)
+                    if len(reads) == 1:
+                        raise error
+                    return await original_history(*args, **kwargs)
+
+                async def record_post(data, session_id=""):
+                    op = data.operations[0]
+                    sent.append((op.op_id.client_id, op.op_id.seq, op.base_revision))
+                    return await original_post(data, session_id)
+
+                with patch.object(alice, "history", interrupted_history), patch.object(alice, "post", record_post):
+                    result = await alice.edit("notes", [Change(end, end, "A")], base)
+                assert result.attempts == 3
+                assert len(reads) == 2
+                assert sent[0] == sent[1]
+                assert len({item[:2] for item in sent}) == 1
+                await a.wait_for_revision(base + 2)
+                await b.wait_for_revision(base + 2)
+                assert a.text == b.text
+                assert a.text.count("A") == (base - 3) // 2 + 1
+                assert a.text.count("B") == (base - 3) // 2 + 1
             await a.close()
             await b.close()
 

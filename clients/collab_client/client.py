@@ -153,21 +153,25 @@ class CollabClient:
                 try:
                     reply = await self.post(document_pb2.SubmitOperationsRequest(doc_id=doc_id, operations=[op]),
                                             session_id)
+                    if reply.status == S.OK:
+                        return EditResult(reply.edit.revision, attempt, reply.edit.duplicates > 0)
+                    if reply.status == S.STALE_REVISION:
+                        # Fetch every page before changing our base or positions.
+                        # An election can interrupt this read as well as Post.
+                        missed_ops = await self.history(doc_id, base)
+                        for missed in missed_ops:
+                            theirs = [Change(c.range.start, c.range.end, c.insert) for c in missed.operation.changes]
+                            changes, base = rebase(changes, theirs), missed.revision
+                        continue
+                    if reply.status != S.UNAVAILABLE:
+                        raise CollabError(reply.status, reply.message)
+                except CollabError as error:
+                    if error.status != S.UNAVAILABLE:
+                        raise
                 except grpc.aio.AioRpcError as error:
                     if error.code() not in (grpc.StatusCode.UNAVAILABLE, grpc.StatusCode.DEADLINE_EXCEEDED):
                         raise
-                    await asyncio.sleep(min(2.0, 0.05 * 2 ** min(attempt, 8)))
-                    continue
-                if reply.status == S.OK:
-                    return EditResult(reply.edit.revision, attempt, reply.edit.duplicates > 0)
-                if reply.status == S.STALE_REVISION:
-                    for missed in await self.history(doc_id, base):
-                        theirs = [Change(c.range.start, c.range.end, c.insert) for c in missed.operation.changes]
-                        changes, base = rebase(changes, theirs), missed.revision
-                elif reply.status == S.UNAVAILABLE:
-                    await asyncio.sleep(min(2.0, 0.05 * 2 ** attempt) * random.uniform(0.5, 1))
-                else:
-                    raise CollabError(reply.status, reply.message)
+                await asyncio.sleep(min(2.0, 0.05 * 2 ** min(attempt, 8)) * random.uniform(0.5, 1))
             raise CollabError(S.UNAVAILABLE, f"edit not accepted after {max_attempts} attempts")
 
     async def move_cursor(self, view: "DocumentView", anchor: int, head: int | None = None) -> int:
