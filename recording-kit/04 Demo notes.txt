@@ -1,0 +1,9 @@
+Demo meeting notes
+
+We has three document replicas.
+Alice will run the recovery check before 18 November.
+Bob will review the test report before 18 November.
+The team agreed that the recording will be ready for submission on 18 November.
+The consensus mechanism makes sure that all of the servers are able to maintain the same agreed order for changes that are made to the document.
+
+Next steps:

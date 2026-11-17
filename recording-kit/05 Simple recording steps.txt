@@ -1,0 +1,91 @@
+COMMONPLACE — SIMPLE RECORDING SETUP
+Aryan and Reshma. One laptop. One small webcam rectangle.
+
+YOU DO NOT PASTE COMMANDS INTO A TERMINAL.
+The commands are built into 02 Recording controls.cmd.
+In that window, type one number and press Enter.
+
+BEFORE RECORDING
+
+1. Double-click 01 Start local editor.cmd.
+   A black SERVER window opens. Wait for the editor to open in your browser.
+   Keep the SERVER window open, but minimize it.
+   If the browser did not open, type http://localhost:8080 into its address bar.
+   Start this only once. Leave the servers running throughout the recording.
+
+2. Make TWO browser windows at http://localhost:8080.
+   First window: press Windows+Left to put it on the left.
+   Press Ctrl+N for a second window, open http://localhost:8080 there, then Windows+Right.
+   These are the Alice window and the Bob window. Start the video with both on the login page.
+
+3. Leave both windows on the login screen for the beginning of the video.
+   You will sign in during section 3. The first AI request may take a while;
+   keep recording and cut its idle wait later. In section 5 check that the
+   assistant says Local CPU language model.
+
+4. Double-click 02 Recording controls.cmd.
+   This is your ONE technical control window. Maximize it when showing results.
+   Type 6 and press Enter to run the tests before recording.
+   Wait for the passing test summary. Press Enter to return to the menu.
+   Minimize this window. Do not close it.
+
+5. Open 04 Demo notes.txt and leave it ready in Notepad.
+   Open 07 Architecture.png once and minimize it, ready for section 2.
+   Open 08 Repository.url once, ready for section 11, then return to the editor login page.
+
+6. Put 03 Read-along script.txt on a phone or print it.
+   It has every spoken paragraph and the exact matching clicks.
+   If you only have the laptop, read between sections in Notepad and trim those pauses later.
+   ChatGPT can now be closed.
+
+7. In OBS use ONE scene:
+   Add Display Capture for the laptop screen.
+   Add Video Capture Device for the webcam, above Display Capture in the source list.
+   Make the webcam a small rectangle near the bottom centre, framing both people.
+   Keep the document title, saved label and right-hand tools visible.
+   Select the microphone, check both voices, use 30 fps, and record to MKV.
+   Make and play back a short test to check readable text and clear voices.
+
+DURING RECORDING
+
+8. Just before starting: in 04 Demo notes.txt press Ctrl+A, then Ctrl+C.
+   Minimize Notepad. This leaves the sample text ready for section 3.
+   You paste it into the large DOCUMENT BODY, not into the controls window.
+   Leave the deliberate We has mistake; the assistant will correct it in the demo.
+   Click Start Recording in OBS, then minimize OBS.
+   Leave both editor windows and the small webcam visible.
+   Follow 03 Read-along script.txt, sections 1–12.
+   Aryan speaks odd sections; Reshma speaks even sections.
+   Alt+Tab switches between the browser, picture and control window.
+
+THE FIVE TECHNICAL ACTIONS
+
+Section 7: controls -> type 1 -> Enter. Show leader and three voters.
+Section 8: Enter for menu -> type 2 -> Enter. Show failure and the new leader.
+           Return to Alice. Add Saved after leader failure. and wait for it to save.
+Section 9: controls -> Enter for menu -> type 3 -> Enter. Wait for all three to agree.
+Section 10: Enter for menu -> type 4 -> Enter. Wait for the verification report.
+Section 11: Enter for menu -> type 5 -> Enter. Show the saved test result.
+
+The result stays visible until YOU press Enter. Let viewers read it.
+To show the browser again, minimize the controls; do not close them.
+Menu 0 stops the entire demo. Use it only after filming.
+
+AFTER RECORDING
+
+9. Restore OBS and click Stop Recording.
+   In controls press Enter for the menu, then type 0 and Enter.
+   This stops the services and recovered voter. Documents stay on disk.
+   If the controls window is unavailable, double-click 06 Stop demo.cmd instead.
+   Keep the MKV. In OBS use File -> Remux Recordings to make an MP4 for editing.
+   Cut the idle waits and check the final video is 5–10 minutes.
+
+TAKE 2
+
+If you want a fresh document for another take, choose 7 in the controls menu and enter 2.
+Create Video Demo 02 in the editor. The browser and controls must use the same take number.
+
+LOCAL RECORDING
+
+This simple setup records the working local browser editor, without starting the public tunnel.
+The simplified script explains that accurately. Your recording address is http://localhost:8080.

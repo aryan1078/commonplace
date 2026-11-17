@@ -1,5 +1,7 @@
 # Commonplace recording runbook
 
+For the simpler one-window recording setup, use [RECORDING-QUICK-START.md](RECORDING-QUICK-START.md) and [recording-read-along.txt](recording-read-along.txt). The `recording-kit` folder contains numbered launchers. Its controls menu runs the commands automatically; the separate-terminal instructions below remain available as an advanced alternative.
+
 For Aryan and Reshma, sitting together at one laptop. Target edited duration: **9:00**, with **4:30 allocated to each person**. The script has six turns each and nearly the same number of spoken words. A natural reading is better than forcing the timestamps. Keep the final export between the assignment's 5 and 10 minutes. The timestamps exclude idle waits that you cut later.
 
 ## What remains before November 18

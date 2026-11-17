@@ -1,0 +1,42 @@
+Stopping only the currently elected document voter. Its disk is kept.
+
+
+Document: recording-rehearsal
+ADDRESS                 ROLE           TERM   COMMIT  APPLIED  VERSION  TEXT DIGEST
+127.0.0.1:60878         follower          1        1        1        0  e3b0c44298fc1c14
+127.0.0.1:60879         leader            1        2        2        1  4c7400a1f7eb72d4
+127.0.0.1:60880         follower          1        1        1        0  e3b0c44298fc1c14
+Replicas are still catching up. Run status again.
+
+Stopped elected leader 127.0.0.1:60879 (PID 3364). Its disk was kept.
+
+Document: recording-rehearsal
+ADDRESS                 ROLE           TERM   COMMIT  APPLIED  VERSION  TEXT DIGEST
+127.0.0.1:60878         leader            4        3        3        1  4c7400a1f7eb72d4
+127.0.0.1:60879         unreachable       -        -        -        -  -
+127.0.0.1:60880         follower          4        3        3        1  4c7400a1f7eb72d4
+2 of 3 voters reachable. Two voters are needed for a majority.
+Replacement leader elected in a higher term. Return to the editor and save a new line.
+Restarting 127.0.0.1:60879 using its original disk:
+C:\Users\aryan\Documents\Codex\2026-11-17\i-h\work\recording-controls-qa9n5s_e\node1
+Wait for the three replicas to agree...
+
+Document: recording-rehearsal
+ADDRESS                 ROLE           TERM   COMMIT  APPLIED  VERSION  TEXT DIGEST
+127.0.0.1:60878         leader            4        4        4        2  676221a7f508ed12
+127.0.0.1:60879         follower          4        4        4        2  676221a7f508ed12
+127.0.0.1:60880         follower          4        4        4        2  676221a7f508ed12
+All three replicas agree on the document version and text digest.
+
+Recovery complete. This window keeps the recovered voter running.
+Minimize this window to return to the editor. Use 0 when the recording is finished.
+
+Document: recording-rehearsal
+ADDRESS                 ROLE           TERM   COMMIT  APPLIED  VERSION  TEXT DIGEST
+127.0.0.1:60878         leader            4        4        4        2  676221a7f508ed12
+127.0.0.1:60879         follower          4        4        4        2  676221a7f508ed12
+127.0.0.1:60880         follower          4        4        4        2  676221a7f508ed12
+All three replicas agree on the document version and text digest.
+Stopping the demo services. Saved documents remain on disk.
+PASS: menu actions stop the elected leader, save while it is down, recover its original disk, catch up to revision 2, and stop the recovered process through the stop flag.
+Stopping the demo services. Saved documents remain on disk.

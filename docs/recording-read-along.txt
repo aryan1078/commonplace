@@ -1,0 +1,139 @@
+COMMONPLACE — READ ALONG WHILE RECORDING
+Approximately nine edited minutes.
+
+Put this file on a phone or print it.
+DO is an action for the operator; do not read it aloud.
+Read only the words under SAY. Odd sections: Aryan. Even sections: Reshma.
+
+=================================================================
+SECTION 1 | 00:00–00:45 | ARYAN
+Introduce the demonstration
+=================================================================
+
+DO:
+Show both login windows and the webcam rectangle. Start speaking after OBS is minimized.
+
+SAY:
+Hi, I’m Aryan, and this is Reshma. We are demonstrating Commonplace, our Advanced Operating Systems collaboration project. Users sign in, edit a shared document, see other users’ changes, and review its history. The main systems problem is keeping an agreed document history when a server crashes. We address that with three document replicas using Raft. We will show the complete save path, live editing, local writing assistance, leader failure, and recovery. This recording uses independent Python server processes with separate data directories on one laptop.
+
+=================================================================
+SECTION 2 | 00:45–01:30 | RESHMA
+Architecture and communication
+=================================================================
+
+DO:
+Open 07 Architecture.png and maximize it. Point to the five roles. Return to the browsers afterward.
+
+SAY:
+Here is the architecture. The browser uses gRPC-Web to reach a Python edge. The edge calls our authenticated gateway using native gRPC. The gateway routes document requests to the elected Raft leader and writing requests to the separate Assist service. Assist runs Qwen2.5-1.5B-Instruct locally on the CPU. Three document voters each own a SQLite log. These form five logical roles: the AI server, three voters, and the gateway with the client interface. All backend services and the consensus implementation are Python.
+
+=================================================================
+SECTION 3 | 01:30–02:15 | ARYAN
+Two accounts and live propagation
+=================================================================
+
+DO:
+Choose Alice in the left window and Bob in the right, then Sign in. As Alice create Video Demo 01. Click the large blank writing area below its title and Ctrl+V to paste 04 Demo notes. Wait for All changes saved. In Bob refresh the document list and open Video Demo 01. Add in Alice: Alice: We will demonstrate a leader failure. Wait for it to appear for Bob; point to A/B presence.
+
+SAY:
+I’ll sign in as Alice in this window and Bob in the other. These are two independent authenticated sessions, even though we are recording on one laptop. The gateway verifies password hashes and issues a session token. It also supplies the author identity for every edit. Alice now creates Video Demo 01 and enters our meeting notes. Bob opens the same document. When Alice adds this line, it appears for Bob, and both users are visible in the presence indicators. The saved label means the edit was acknowledged by the server.
+
+=================================================================
+SECTION 4 | 02:15–03:00 | RESHMA
+Revisions, conflict handling, and authors
+=================================================================
+
+DO:
+In Bob add: Bob: We will check recovery on the original disks. Wait for the saved label and for Alice to receive it. Maximize Alice and open History. Point to Saved by Bob and Saved by Alice.
+
+SAY:
+Each document has a revision number. A client sends changed text ranges together with the revision it started from and an operation ID. If another edit has already advanced that revision, the stale client fetches the missing history, adjusts its positions, and retries. The operation ID prevents a retry from applying the same operation twice. History records the accepted edits and their authenticated authors. I’ll add Bob’s line and open history to show both authors. This browser example shows propagation; the later workload tests overlapping requests from eight clients.
+
+=================================================================
+SECTION 5 | 03:00–03:50 | ARYAN
+Grammar, applying a suggestion, and continuation
+=================================================================
+
+DO:
+Open Writing assistant and show Local CPU language model. Click Check grammar; wait. Apply the We has -> We have suggestion. Show the corrected sentence and History. Return to the assistant, click just after Next steps: in the document, and choose Continue writing. Show the suggestion without applying it.
+
+SAY:
+The writing assistant is a separate service, rather than part of the consensus algorithm. First, we ask it to check this document. It proposes changing ‘We has’ to ‘We have’. We review that replacement before applying it. Grammar combines model output with explicit checks for common mistakes. Applying the suggestion creates another ordinary, replicated edit, which we can see in history. Next, we place the cursor after ‘Next steps’ and request a continuation. The generated text is a suggestion. It does not silently overwrite the document.
+
+=================================================================
+SECTION 6 | 03:50–04:40 | RESHMA
+Context-aware rewriting and summary
+=================================================================
+
+DO:
+Highlight the long sentence beginning The consensus mechanism makes sure... Choose Make it concise, then Rewrite selection. Apply only if its meaning is right. Click Summarize, wait for the answer, and point to Based on version. Do not read the whole answer aloud.
+
+SAY:
+For rewriting, we select this long sentence and choose ‘Make it concise’. The request includes the selection and relevant document context. We review the returned replacement and apply it only if it preserves the meaning. For summarization, the assistant receives the current document and returns its main points. The panel identifies the document version used. Suggestions carry an anchor containing the document, revision, and text range. Before acceptance, the client checks that the intended passage still matches. The model is pretrained and locally hosted. We use context-aware prompts; its answers still need review.
+
+=================================================================
+SECTION 7 | 04:40–05:25 | ARYAN
+The normal Raft save path
+=================================================================
+
+DO:
+Open System status in Alice and point to the leader and term. Switch to the black controls window, type 1, then Enter. Keep the server table visible while explaining it.
+
+SAY:
+Now follow a normal save. The browser keeps a local draft, and autosave sends changes through the authenticated gateway. The elected leader appends a command and sends AppendEntries RPCs to its followers. For a new entry in its current term, it commits after a majority has durably recorded it. In our three-voter cluster, that majority is two. Replicas then apply committed commands in order and update the clients. System status shows the leader, election term, commit index, applied index, and document revision. An entry stored on one disk is not yet a committed save.
+
+=================================================================
+SECTION 8 | 05:25–06:10 | RESHMA
+Kill the elected leader and keep editing
+=================================================================
+
+DO:
+Read the first sentence, then in controls press Enter for the menu, type 2 and Enter. Keep the real stop/election sequence in the video. Say Here the failed voter... only AFTER the new leader appears. Minimize controls. Add in Alice: Saved after leader failure. Wait for All changes saved and show the line in Bob.
+
+SAY:
+We will now stop the document server that is actually leader. The browser, gateway and other two voters keep running. After missing heartbeats, a follower becomes a candidate, increments its term and sends RequestVote RPCs. A candidate needs a majority, and voters check that its log is sufficiently up to date. Randomized timeouts reduce split votes. Here the failed voter is unreachable, and a new leader appears in a higher term. We can now save another line and see it in Bob’s window. Two survivors still form a majority of the original three voters.
+
+=================================================================
+SECTION 9 | 06:10–06:55 | ARYAN
+Restart on the original disk and verify catch-up
+=================================================================
+
+DO:
+Return to controls. Press Enter for the menu, type 3 and Enter. Wait for All three replicas agree. Only then say Here all three voters report... Show the matching VERSION/DIGEST fields. Return to the document and show the post-failure line. Keep the controls window open; it maintains the recovered voter.
+
+SAY:
+We now restart the failed voter using its original address, membership configuration, and data directory. It replays its persisted committed log and catches up with the current leader. It may temporarily show an older revision while missing entries arrive. Here all three voters report the same document revision and text digest, including the edit made while one voter was down. A matching digest checks agreement of the document text. Commit indices can briefly differ between diagnostic reads, because these status requests observe each replica separately while the system is running.
+
+=================================================================
+SECTION 10 | 06:55–07:40 | RESHMA
+Concurrent workload, full disk restart, and majority loss
+=================================================================
+
+DO:
+In controls press Enter for the menu, type 4 and Enter. Wait for the actual report. Shorten the silent wait later. Point to revision 200, history replay matches, client copies identical, and the recovery checks. A failure must not be described as a pass.
+
+SAY:
+This verification script launches a separate test cluster, so it does not overwrite our visible demo document. Eight clients attempt twenty-five edits each while the elected leader is killed. The report checks two hundred accepted edits, matching history replay, and identical client copies. It then restarts all voters on their existing test disks, checks duplicate suppression again, and verifies that losing a majority prevents fresh authoritative reads and writes. This harness uses a stub AI service to isolate recovery testing. The writing assistance we showed earlier used the real local model.
+
+=================================================================
+SECTION 11 | 07:40–08:20 | ARYAN
+Tests, source, and browser hosting
+=================================================================
+
+DO:
+In controls press Enter for the menu, type 5 and Enter. Show the saved Python test result. Open 08 Repository.url and briefly show the README/source. This recording uses the local editor; you do not need the public tunnel.
+
+SAY:
+The repository contains the Python services, protobuf contracts, setup instructions, tests, and measured results. The release passed one hundred and forty-nine automated tests on Windows and Linux. We also tested a fresh source archive. This recording uses the local browser connection. The public frontend is published on GitHub Pages, and a free HTTPS tunnel can connect it to the host’s Python edge. The laptop supplies the model, compute, and durable storage. Public access therefore needs the host awake and connected. The same editor can also be used on a local network.
+
+=================================================================
+SECTION 12 | 08:20–09:00 | RESHMA
+Limits and conclusion
+=================================================================
+
+DO:
+Return to the saved document with the webcam rectangle still visible. Finish speaking, leave two seconds of silence, restore OBS and Stop Recording. After that use 0 in the controls menu to stop the demo.
+
+SAY:
+The key result is that accepted document edits survive a voter crash and remain consistent after recovery. The system also preserves version history, author identity, and duplicate protection across voter restarts. Our current limits are fixed membership, growing logs without compaction, and memory-only gateway and browser sessions. Three processes on one laptop share that laptop’s failure domain. Separate physical machines would be needed for host-failure tolerance. Future work includes snapshots, log compaction, and stronger gateway availability. That completes our demonstration of collaboration, gRPC communication, and Raft recovery. Thank you.
+

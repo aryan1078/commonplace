@@ -131,19 +131,23 @@ def recover(args):
           "Keep this recovery terminal open. Use the other terminal for status.\n"
           "At the end, press Ctrl+C here before Stop demo.cmd.\n", flush=True)
     process = subprocess.Popen(command, cwd=ROOT)
+    stop_file = getattr(args, "stop_file", ROOT / "logs/stop-requested")
+    original_stop = stop_file.stat().st_mtime_ns if stop_file.exists() else None
     try:
-        process.wait()
+        while process.poll() is None:
+            # Stop demo.cmd also stops a voter restarted by this helper. Ignore
+            # an unchanged old stop flag from before this recovery began.
+            if stop_file.exists() and stop_file.stat().st_mtime_ns != original_stop:
+                break
+            time.sleep(.25)
     except KeyboardInterrupt:
         pass
     finally:
         if process.poll() is None:
-            try:
-                process.wait(timeout=3)
-            except subprocess.TimeoutExpired:
-                # The verified port identifies the real Python child even when
-                # a Windows virtual-environment launcher adds a wrapper process.
-                stop_voter(record["port"])
-                process.wait(timeout=5)
+            # The verified port identifies the real Python child even when
+            # a Windows virtual-environment launcher adds a wrapper process.
+            stop_voter(record["port"])
+            process.wait(timeout=5)
 
 
 def main():
@@ -154,6 +158,7 @@ def main():
     parser.add_argument("--doc", default="video-demo-01")
     parser.add_argument("--peers", default="localhost:50051,localhost:50052,localhost:50053")
     parser.add_argument("--state-file", type=Path, default=ROOT / "logs/recording-failure.json")
+    parser.add_argument("--stop-file", type=Path, default=ROOT / "logs/stop-requested")
     args = parser.parse_args()
     args.peers = args.peers.split(",")
     try:
