@@ -23,3 +23,7 @@ The updated Windows suite passed **149 tests**. New integration checks send actu
 The UI was also exercised in browser tabs, including public HTTPS access through localhost.run. The provider rotates anonymous domains during a session. The host tracks replacements and publishes the non-secret endpoint on the separate demo-status branch; browser discovery reads that file. This is a temporary laptop-hosted public demo. It depends on the laptop, internet, tunnel provider and GitHub API being available.
 
 The final browser source ZIP was extracted into a fresh directory with no generated code. Protobuf generation and all **149 tests passed on the first run in 19.59 seconds**. This also caught and fixed an import-cache issue in the cold-checkout test bootstrap. See browser-unzip-test-results.txt.
+
+## Milestone 2 re-audit
+
+The final local Python suite passed 149 tests in 17.58 seconds. Five additional JavaScript controller regressions passed for delayed polls, changed documents/sessions, delayed save responses and suggestion acceptance. The UI now rejects obsolete responses and preserves newer committed state. The independent 200-edit process test passed again, including an added follower-crash/new-edit/original-disk catch-up case. That run measured 0.954 seconds to the next accepted joined-client edit after the leader kill. See MILESTONE-2-AUDIT.md and m2-audit-* evidence files for scope, pending deliverables and qualifications.

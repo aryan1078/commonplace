@@ -115,6 +115,14 @@ async def run():
             await agree(simulation.doc_id, 200)
             await agree("retry", 1)
             assert (await docs.submit(request)).duplicates == 1
+            # A follower can also fail while the leader and other voter continue.
+            replies = await states("acceptance")
+            follower = next(i for i, state in enumerate(replies) if state.role == "follower")
+            kill(follower)
+            await view.edit(Change(0, 0, "Follower recovered: "))
+            start(follower)
+            await agree("acceptance", 3)
+            await agree(simulation.doc_id, 200)
             # Keep one voter alive and verify quorum-backed reads/writes time out.
             replies = await states("acceptance")
             survivor = next(i for i,s in enumerate(replies) if s.role == "leader")
@@ -134,7 +142,9 @@ async def run():
                     assert error.code() in (grpc.StatusCode.FAILED_PRECONDITION,grpc.StatusCode.DEADLINE_EXCEEDED)
             report["checks"] = ["leader killed during 200-edit workload", "live view survived",
                 "duplicate retry after failover", "all three replicas matched",
-                "full cluster disk restart", "deduplication after disk restart", "majority loss rejects reads and writes"]
+                "full cluster disk restart", "deduplication after disk restart",
+                "follower crash accepts a new edit and catches up on its original disk",
+                "majority loss rejects reads and writes"]
             print(json.dumps(report, indent=2))
             await docs.close()
         finally:

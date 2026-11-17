@@ -31,6 +31,8 @@ jobs:
       - name: Generate gRPC code
         run: python scripts/gen_proto.py
       - name: Run tests
-        run: python -m pytest -o addopts= -q
+        run: python -m pytest -o addopts= -o faulthandler_timeout=60 -q
+      - name: Check delayed editor responses
+        run: node tests/ui_state.test.cjs
       - name: Verify leader failure and disk recovery
         run: python scripts/verify_cluster.py

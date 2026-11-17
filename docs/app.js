@@ -5,13 +5,15 @@ window.hasUnsavedChanges = () => dirty || !!saving;
 let api, current = null, base = '', revision = 0, dirty = false, saving = null;
 let timer, polling = false, aiBusy = false, activePanel = '', composition = false, recovering = null;
 let selection = [0, 0], polls = 0;
+let viewEpoch = 0, switching = false;
 const title = id => id.split(/[-_]/).map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
 const node = (tag, cls, text) => { const e = document.createElement(tag); e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 
 async function call(method, ...args) {
+  const epoch = viewEpoch;
   const reply = await api[method](...args);
   if (!reply.ok) {
-    if (reply.expired) expire();
+    if (reply.expired && epoch === viewEpoch) expire();
     throw new Error(reply.error || 'The request could not be completed.');
   }
   return reply.data;
@@ -21,7 +23,7 @@ function saveStatus(text, kind = '') { $('save-status').textContent = text; $('s
 function countWords() { const text = editor.value.trim(); $('word-count').textContent = `${text ? text.split(/\s+/u).length : 0} words`; }
 function expire() {
   if (current?.document && dirty) recovering = {username: current.username, id: current.document.id, base, revision, text: editor.value};
-  current = null; $('workspace').classList.add('hidden'); $('login').classList.remove('hidden');
+  viewEpoch++; current = null; $('workspace').classList.add('hidden'); $('login').classList.remove('hidden');
   $('login-error').textContent = 'Your session ended. Sign in again to continue.';
   $('password').value = ''; clearTimeout(timer);
 }
@@ -37,6 +39,9 @@ function renderDocuments() {
   if (!items.length) list.append(node('p', 'doc-list-empty', query ? 'No matching documents.' : 'Your shared documents will appear here. Create one to begin.'));
 }
 function applyState(state) {
+  if (current?.username === state.username && current?.document &&
+      current.document.id === state.document?.id &&
+      state.document.revision < Math.max(current.document.revision, revision)) return false;
   current = state;
   $('user-name').textContent = state.username; $('user-avatar').textContent = state.username.slice(0, 1);
   $('server-name').textContent = state.gateway; $('server-name').title = state.gateway;
@@ -73,6 +78,19 @@ function applyState(state) {
     countWords();
   } else { $('breadcrumb-title').textContent = 'Documents'; $('participants').replaceChildren(); }
   renderDocuments();
+  return true;
+}
+
+function applyBackground(state, epoch) {
+  if (switching || epoch !== viewEpoch || !current || state.username !== current.username ||
+      (state.document?.id || null) !== (current.document?.id || null)) return false;
+  return applyState(state);
+}
+
+async function refreshDocuments() {
+  const epoch = viewEpoch;
+  try { applyBackground(await call('documents'), epoch); }
+  catch (error) { if (epoch === viewEpoch) notice(error.message); }
 }
 
 $('mobile-documents').onclick = () => {
@@ -94,7 +112,11 @@ async function flush() {
   saveStatus('Saving changes…', 'saving');
   saving = (async () => {
     try {
-      const state = await call('save', docId, oldBase, sent, oldRevision);
+      let state = await call('save', docId, oldBase, sent, oldRevision);
+      // A subscription poll can already know a revision newer than this save's
+      // delayed response. Its ordered history includes the acknowledged save.
+      if (current?.username === state.username && current?.document?.id === docId &&
+          current.document.revision > state.document.revision) state = current;
       const canonical = state.document.text;
       if (editor.value !== sent) {
         // Rebase keystrokes typed during this save over the committed result.
@@ -117,6 +139,8 @@ async function flush() {
   if (dirty) return flush();
 }
 async function openDocument(id) {
+  if (switching) return;
+  switching = true; viewEpoch++; editor.readOnly = true;
   try {
     await flush();
     const state = await call('open', id);
@@ -126,6 +150,7 @@ async function openDocument(id) {
     if (activePanel === 'assist') resetAI();
     editor.focus();
   } catch (error) { notice(error.message); }
+  finally { switching = false; editor.readOnly = false; }
 }
 function resetAI() { $('ai-result').replaceChildren(node('p', 'subtle', 'Choose a tool to get started.')); }
 function panel(which) {
@@ -192,8 +217,11 @@ async function assist(task) {
         item.append(node('ins', '', s.replacement), node('small', '', s.reason));
         const apply = node('button', 'quiet-button', 'Apply suggestion');
         apply.onclick = async () => {
+          if (switching) return;
+          switching = true; viewEpoch++; editor.readOnly = true;
           try { await flush(); const state = await call('accept', s.index); dirty = false; applyState(state); resetAI(); notice('Suggestion applied and saved.'); }
           catch (error) { notice(error.message); }
+          finally { switching = false; editor.readOnly = false; }
         };
         item.append(apply); $('ai-result').append(item);
       }
@@ -205,7 +233,7 @@ async function assist(task) {
 }
 
 $('login-form').onsubmit = async event => {
-  event.preventDefault(); $('signin').disabled = true; $('login-error').textContent = '';
+  event.preventDefault(); viewEpoch++; $('signin').disabled = true; $('login-error').textContent = '';
   try {
     await call('configure', $('server').value.trim(), $('tls').checked);
     const state = await call('login', $('username').value, $('password').value);
@@ -222,20 +250,24 @@ $('login-form').onsubmit = async event => {
 $('show-password').onclick = () => { const show = $('password').type === 'password'; $('password').type = show ? 'text' : 'password'; $('show-password').textContent = show ? 'Hide' : 'Show'; };
 document.querySelectorAll('[data-demo]').forEach(button => button.onclick = () => { $('username').value = button.dataset.demo; $('password').value = `${button.dataset.demo}123`; });
 $('logout').onclick = async () => {
+  if (switching) return;
+  switching = true; viewEpoch++; editor.readOnly = true;
   try { await flush(); await call('logout'); dirty = false; current = null; editor.value = ''; $('workspace').classList.add('hidden'); $('login').classList.remove('hidden'); $('password').value = ''; panel(''); notice(); }
   catch (error) { $('leave-dialog').showModal(); notice(error.message); }
+  finally { switching = false; editor.readOnly = false; }
 };
 $('stay').onclick = () => $('leave-dialog').close();
 function newDocument() { $('document-name').value = ''; $('create-error').textContent = ''; $('create-dialog').showModal(); $('document-name').focus(); }
 $('new-document').onclick = newDocument; $('empty-create').onclick = newDocument;
 $('cancel-create').onclick = () => $('create-dialog').close();
 $('create-form').onsubmit = async event => {
-  event.preventDefault(); $('create-submit').disabled = true;
+  event.preventDefault(); if (switching) return;
+  switching = true; viewEpoch++; editor.readOnly = true; $('create-submit').disabled = true;
   try { await flush(); const state = await call('create', $('document-name').value); dirty = false; editor.value = ''; applyState(state); $('create-dialog').close(); notice(); editor.focus(); }
   catch (error) { $('create-error').textContent = error.message; }
-  finally { $('create-submit').disabled = false; }
+  finally { switching = false; editor.readOnly = false; $('create-submit').disabled = false; }
 };
-$('refresh-docs').onclick = async () => { try { applyState(await call('documents')); } catch (error) { notice(error.message); } };
+$('refresh-docs').onclick = refreshDocuments;
 $('search').oninput = renderDocuments;
 $('assist-button').onclick = () => panel('assist'); $('history-button').onclick = () => panel('history'); $('system-button').onclick = () => panel('system'); $('close-drawer').onclick = () => panel(''); $('refresh-system').onclick = loadSystem;
 document.querySelectorAll('[data-task]').forEach(button => button.onclick = () => assist(button.dataset.task));
@@ -259,10 +291,16 @@ async function ready() {
     if (window.commonplaceBrowser) $('browser-status').textContent = 'The host needs to start the demo server. Your browser needs no installation.';
   }
   setInterval(async () => {
-    if (!current || polling) return;
+    if (!current || polling || switching) return;
+    const epoch = viewEpoch;
     polling = true;
-    try { applyState(await call('poll')); if (++polls % 15 === 0) applyState(await call('documents')); if (activePanel === 'system' && polls % 4 === 0) await loadSystem(); }
-    catch (error) { notice(error.message); }
+    try {
+      applyBackground(await call('poll'), epoch);
+      if (epoch !== viewEpoch || !current) return;
+      if (++polls % 15 === 0) applyBackground(await call('documents'), epoch);
+      if (epoch === viewEpoch && activePanel === 'system' && polls % 4 === 0) await loadSystem();
+    }
+    catch (error) { if (epoch === viewEpoch) notice(error.message); }
     finally { polling = false; }
   }, 900);
 }

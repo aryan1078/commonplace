@@ -1,0 +1,22 @@
+{
+  "recovery_seconds": 0.954,
+  "simulation": [
+    "document          sim-b643671b",
+    "final revision    200 (expected 200)",
+    "history replay    matches",
+    "client copies     identical",
+    "attempts          880 for 200 edits (680 rebases/retries)",
+    "time              10.9s",
+    "CONSISTENT"
+  ],
+  "checks": [
+    "leader killed during 200-edit workload",
+    "live view survived",
+    "duplicate retry after failover",
+    "all three replicas matched",
+    "full cluster disk restart",
+    "deduplication after disk restart",
+    "follower crash accepts a new edit and catches up on its original disk",
+    "majority loss rejects reads and writes"
+  ]
+}
