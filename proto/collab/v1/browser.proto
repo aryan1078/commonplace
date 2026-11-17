@@ -1,0 +1,19 @@
+syntax = "proto3";
+package collab.v1;
+
+// Browser edge only. The edge owns an isolated Python client per session;
+// document operations still use the typed GatewayService gRPC contract.
+service BrowserService {
+  rpc Call(BrowserRequest) returns (BrowserReply);
+}
+message BrowserRequest {
+  string session_key = 1;
+  string action = 2;
+  string arguments_json = 3;
+  // Retained across a lost HTTP reply so repeating a UI action is safe.
+  string request_id = 4;
+}
+message BrowserReply {
+  string session_key = 1;
+  string result_json = 2;
+}

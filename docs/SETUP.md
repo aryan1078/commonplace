@@ -99,3 +99,9 @@ Membership is fixed at three. History and logs grow without compaction or snapsh
 ## References and provenance
 
 This extends the supplied team Python baseline. Raft follows Ongaro and Ousterhout, In Search of an Understandable Consensus Algorithm (Extended Version), Figure 2 and sections 5 and 8, https://raft.github.io/raft.pdf . Model sources are https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct and https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF (Apache 2.0). Retain upstream licenses. Document AI assistance and actual member contributions according to course rules.
+
+## Browser editor (recommended for visitors)
+
+Visitors open the [online editor](https://aryan1078.github.io/commonplace/) and sign in. They install nothing. The host runs **Start online demo.cmd** for a free public HTTPS URL, or **Start browser demo.cmd** for localhost. Add `--lan` for other browsers on the same trusted network. The host needs Python 3.11; the launcher installs `requirements-web.txt` and generates all protobuf contracts. Real AI uses the same model setup described above. See [deployment](../deploy/DEPLOYMENT.md) for tunnel lifetime, Pages connection updates, shared demo accounts and the LAN fallback.
+
+For a manual host setup: create a virtual environment, install `requirements-web.txt`, run `python scripts/gen_proto.py`, then `python scripts/launch_web.py --share`. The browser edge uses port 8080. Keep the host awake during public use.

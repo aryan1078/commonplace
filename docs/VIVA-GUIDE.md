@@ -32,7 +32,7 @@ The assignment's five logical nodes map to the following deployment.
 | 2 | Document voter 1 | Store a log and participate in consensus |
 | 3 | Document voter 2 | Store an independent log and vote |
 | 4 | Document voter 3 | Store an independent log and vote |
-| 5 | Gateway and client windows | Authenticate users, route requests and display the editor |
+| 5 | Gateway, browser edge and client interface | Authenticate users, route requests and display the editor |
 
 The voters are identical programs with different addresses and data directories. Any of them can become leader. We do not hard-code “node 1 is always leader.”
 
@@ -40,13 +40,17 @@ Three processes on one laptop protect against an individual process crash in the
 
 ## 3. What each part does
 
-### The desktop interface
+### The browser interface and Python edge
 
-This is the window users see. It has a login form, document list, text editor, presence avatars, history panel, writing tools and system status. The screen is built in HTML and CSS for layout, with JavaScript for interaction. A Python webview displays it as a desktop window.
+This is the page users see. It has a login form, document list, text editor, presence avatars, history panel, writing tools and system status. HTML and CSS arrange the screen. JavaScript handles typing and button clicks. Visitors open the public URL and install nothing.
 
-The JavaScript talks locally to the Python part of that same client. The Python client makes the remote gRPC calls. This gives us a graphical interface while keeping the application's network communication in gRPC. HTML and CSS describe the screen. The distributed application services are Python.
+The browser talks to a small Python program called the browser edge using gRPC-Web. Browsers do not expose the same networking API as a normal Python gRPC client. gRPC-Web wraps protobuf requests in a browser-compatible HTTP format. The edge translates an allowed UI action into calls to our existing Python client library. Those calls use the same typed gateway gRPC contract as before.
 
-The window is a desktop application. A public gateway address can let that desktop application connect over the internet. A normal browser does not open the native client by visiting the gateway address.
+Every browser tab gets its own random edge session key and its own Python client instance. Alice's browser cannot accidentally reuse Bob's login. Passwords travel over HTTPS in the public demo and are verified by the gateway. The gateway token stays in Python memory. The edge key stays in browser memory. Closing or refreshing a tab does not save the password in a local file.
+
+For updates, the edge keeps the existing live gRPC subscription open to the gateway. The browser asks its edge session for the latest state every 900 milliseconds. This is browser polling over gRPC-Web, backed by streaming gRPC inside the Python system. Explain this accurately if asked about real-time behavior.
+
+The optional desktop window still works. It displays the same HTML interface in a Python webview and calls the Python client locally. The browser and desktop share autosave, draft merging, version history and suggestion acceptance.
 
 ### The client library
 
@@ -58,7 +62,7 @@ The client gives every editing session a random client ID and numbers its operat
 
 The gateway is the front door. It checks credentials and tokens, attaches the authenticated author's name to edits, maintains user presence and forwards document requests to the elected leader. It forwards AI requests to Assist.
 
-The desktop client needs only the gateway address. It can continue using that address when the document leader changes. The gateway knows all three voter addresses and can discover the replacement leader.
+The Python client inside the browser edge or desktop needs only the gateway address. It can continue using that address when the document leader changes. The gateway knows all three voter addresses and can discover the replacement leader.
 
 ### The document service
 
@@ -280,7 +284,9 @@ The small 0.5B model tested earlier produced an invented date in autocomplete an
 | proto/collab/v1/*.proto | Remote service contracts and messages |
 | scripts/gen_proto.py | Generating protobuf Python code |
 | scripts/cluster.py | Launching voters, AI and gateway and inspecting status |
-| clients/collab_client/desktop.py | GUI bridge, autosave diffs, history and AI acceptance |
+| clients/collab_client/desktop.py | Shared session logic, autosave diffs, history and AI acceptance |
+| clients/collab_client/browser.py | Python gRPC-Web edge and isolated browser sessions |
+| clients/collab_client/ui/browser.js | Browser wire protocol and API bridge |
 | clients/collab_client/ui/ | The actual screen layout, styles and controls |
 | clients/collab_client/client.py | Login, edit retries and live document copies |
 | clients/collab_client/textops.py | Position mapping, applying changes and rebasing |
@@ -312,11 +318,11 @@ The process verification script starts independent Python processes on free port
 
 The baseline comparison is valuable evidence. It shows why durable replication was needed and what the new checks add. Test results are evidence for the scenarios run. They do not establish that every possible distributed execution has been formally proven safe.
 
-The GUI tests additionally check login rejection, two authenticated editors working together, document creation/history, logout, draft merging and rejection of a stale AI suggestion. The running desktop has also been inspected interactively.
+The GUI tests additionally check login rejection, two authenticated editors working together, document creation/history, logout, draft merging and rejection of a stale AI suggestion. The desktop and public browser editor have also been inspected interactively. The browser release passes 149 tests, including two isolated users through actual binary gRPC-Web framing, live updates, history, logout, origin restrictions, session expiry and body limits.
 
 ## 17. A viva rehearsal you can perform
 
-First start the cluster and desktop using START-HERE. Sign in as Alice, create a document, type one sentence and wait for “All changes saved.” Open another client as Bob and select the same document. Explain why both clients need the same document ID.
+First start the browser demo using START-HERE. Sign in as Alice, create a document, type one sentence and wait for “All changes saved.” Open another client as Bob and select the same document. Explain why both clients need the same document ID.
 
 Type in each window and show both copies. Open history and identify authors. Open System status and identify the current leader. The leader can be any replica, so read its actual role before stopping a process.
 
@@ -371,3 +377,27 @@ Do not stop processes you cannot identify as belonging to the demo. Do not delet
 Be able to explain one edit from keystroke to disk and back to another client. Be able to explain the difference between stored, committed and applied. Practise identifying the actual leader and recovering a node on its original disk. Read your project's current results file so the numbers you quote match the tested release.
 
 The paper reference is Ongaro and Ousterhout, *In Search of an Understandable Consensus Algorithm*, extended version. Figure 2 summarizes the core algorithm. Sections 5.2–5.4 explain elections, replication and safety. Section 8 discusses client interaction and safe reads. Use the supplied paper alongside the code as you study.
+
+## 20. Explain the online version in simple words
+
+**Where does the website live?** GitHub Pages stores the HTML, CSS and JavaScript files. These files draw the login page and editor in the visitor's browser.
+
+**Where does the actual project run?** The Python services and local model run on the host laptop. The three document voters have three independent SQLite data directories there. The webpage sends requests to those programs through a public HTTPS tunnel.
+
+**What is a tunnel?** The host opens an outbound connection to localhost.run. That service gives it a temporary public address. Requests arriving at that address are forwarded to the Python browser edge on port 8080. We do not ask every visitor to install Python or expose the document voters directly.
+
+**Why two addresses?** The GitHub Pages address is the stable entry point. Its endpoint configuration points at the current tunnel. The tunnel can also serve the whole interface, so its direct URL works too. The tunnel address can change during a session or after a restart. The host launcher verifies each new address and publishes only that public endpoint to endpoint.json on a separate demo-status Git branch. The browser discovers the current address through the public GitHub API. This does not expose the host’s GitHub token or rebuild the editor for every rotation. Visitors use the same Pages link.
+
+**Is this permanently hosted in the cloud?** The public page is hosted. The backend is laptop-hosted through a free temporary tunnel. The laptop must stay awake and connected. A permanent service would need an always-on machine with durable storage. We have not provisioned a cloud VM or paid hosting.
+
+**What happens after I type?** The browser keeps a draft. After a short pause it sends the before text, new text and base version to its Python edge session. That session computes changes and sends an authenticated gRPC request to the gateway. The gateway finds the leader. Two voters durably record the command before it can be committed and applied. The result returns through the same path. The UI then says All changes saved. The other browser sees the committed text on its next poll.
+
+**What if the internet disconnects?** The page keeps an unsaved draft in the open tab and shows a failed save. Keep that tab open, reconnect and retry. A successful server-side edit is retried using the same operation ID when its reply was lost. The draft is not a durable offline notebook; refreshing or closing the tab can lose unsaved text. The browser warns before leaving with unsaved changes.
+
+**What if the host restarts?** Committed documents recover from the voter disks. In-memory gateway tokens and browser sessions disappear, so users sign in again. The public tunnel may have a new hostname.
+
+**Can anyone create an account?** This release has administrator-managed accounts. The public classroom demo offers Alice, Bob and Carol. Those accounts all share one workspace. There is no personal document privacy or public registration flow.
+
+**Does moving the interface to a browser change Raft?** No. The browser edge adapts the client connection. Browser action IDs also cache successful side effects, so retrying a request after its HTTP reply was lost does not apply that action twice within the live edge session. The same gateway, log, elections, majority rules, deterministic state machine and recovery code still save the edit.
+
+**How do I demonstrate it?** Run Start online demo.cmd on the host. On another laptop or phone, open the printed HTTPS URL and sign in as Bob. Sign in as Alice in a separate browser, open the same document and type. Show presence, saved versions and a real AI summary. Then show a voter process failing while the browsers remain open. Use the local or LAN browser option if public internet is unreliable.

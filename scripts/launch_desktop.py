@@ -21,13 +21,14 @@ def listening(port):
         return False
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("--client-only", action="store_true")
     parser.add_argument("--gateway", default="localhost:50070")
     parser.add_argument("--fake-llm", action="store_true")
     parser.add_argument("--model-path", type=Path)
-    args = parser.parse_args()
+    parser.add_argument("--servers-only", action="store_true", help="Start services without a desktop window")
+    args = parser.parse_args(argv)
     if not args.client_only and not listening(50070):
         if any(listening(p) for p in (50051, 50052, 50053, 50061)):
             raise RuntimeError("Some demo ports are already in use. Stop the earlier demo before starting a new stack.")
@@ -58,6 +59,8 @@ def main():
             if time.monotonic() > deadline:
                 raise RuntimeError("Startup is taking too long. See logs/launcher.log and logs/assist.log.")
             time.sleep(0.5)
+    if args.servers_only:
+        return 0
     print("Opening Commonplace. Use Stop demo.cmd when the team is finished.", flush=True)
     return subprocess.call([sys.executable, "run.py", "desktop", "--gateway", args.gateway], cwd=ROOT)
 

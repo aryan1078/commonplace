@@ -1,57 +1,57 @@
-# Laptop, LAN and free public access
+# Browser demo deployment
 
-## Working local deployment
+## Visitors
 
-Install Python 3.11. Double-click Start Commonplace.cmd. It creates an isolated virtual environment on first launch, installs the desktop dependencies, starts three voters, Assist and the gateway, and opens the sign-in window. Keep the laptop awake. Stop demo.cmd asks the launcher to stop its own services without deleting the disks.
+Open https://aryan1078.github.io/commonplace/ and sign in. Visitors need no Python, terminal, download or browser extension. The page contains the editor itself. The current host must be online.
 
-The initial classroom accounts are alice/alice123, bob/bob123 and carol/carol123. AI output is marked as demo output when no local model is configured. Use the README model setup for real inference. You can open Start Commonplace.cmd again for another client window.
+## Host on this laptop
 
-## Another laptop on the same LAN
+Double-click **Start online demo.cmd**. It bootstraps Python dependencies, starts three independent document replicas, Assist, the gateway and a browser edge. It then uses OpenSSH to create a free localhost.run HTTPS tunnel, with no hosting account. This repository-owner launcher also uses the already authenticated GitHub CLI to publish the current public endpoint on the demo-status branch. The stable GitHub editor discovers that endpoint on startup and after a connection failure. Visitors never receive a GitHub token. Read the public URL from the launcher or `logs/public-url.txt`. That URL serves the complete editor too, so it can be shared immediately.
 
-Run the cluster on the first laptop. On the second laptop install the project and desktop dependencies, then run `python scripts/launch_desktop.py --client-only --gateway HOST_IP:50070`. HOST_IP is the first laptop's private LAN address. The login form's Server connection also accepts this address. Use different usernames in the two windows and open the same document.
+The launcher checks the public health endpoint before announcing the URL. Keep the host awake, connected to the internet and running the launcher. Use **Stop demo.cmd** when finished. Documents remain in `data/node1`, `data/node2` and `data/node3`.
 
-Windows Firewall must allow incoming TCP 50070 on the chosen private demo network. Review that rule on the host computer. The local-only voter addresses remain localhost because the three voters run on the host. Other clients need only the gateway port. For untrusted networks use TLS or a private tunnel.
+A free tunnel has no uptime promise. Its hostname can change after a restart or rotate during a long session. Test it immediately before recording or evaluation. The browser edge and login do not make the laptop an always-on cloud deployment.
 
-This is a five-logical-node process deployment. To demonstrate independent machine failures, place the three voters on separate machines and use their reachable addresses in the same fixed --peers list.
+## Keep the published editor connected
 
-## Free public route using the laptop
+**Start online demo.cmd** includes `--publish-status aryan1078/commonplace`. The host needs an authenticated `gh` CLI with write access to this repository. The launcher watches the tunnel output, verifies each replacement address, updates `logs/public-url.txt`, and publishes only the HTTPS origin and update time to `endpoint.json` on the separate `demo-status` branch. These small updates do not rebuild Pages or trigger the main-branch test workflow.
 
-Tailscale's Personal plan is currently free, and Funnel is available on all plans. Funnel can publish a raw TCP endpoint. We preserve TLS end to end so Python gRPC can negotiate HTTP/2. This lets the desktop client reach the gateway from outside the LAN. The laptop still provides the compute and disk and must stay online. This route needs a Tailscale account, installed client, a signed-in device and Funnel enabled for the account. It has not been activated in this workspace.
+The editor fetches this public file through GitHub's API when opening, and again after a failed connection. No GitHub credential is sent to the browser. In-memory browser sessions remain on the same Python edge when the tunnel changes. Browser request IDs prevent an acknowledged action from being applied twice after its HTTP reply is lost. An outstanding save is resolved before a newer draft is merged and sent.
 
-After the account steps, use the device hostname shown by Tailscale in place of YOUR_HOST.YOUR_TAILNET.ts.net. Generate a certificate for that hostname and start an additional TLS gateway. It uses the same document voters and AI service.
+GitHub's unauthenticated API and the free tunnel have rate and availability limits. Brief reconnection failures remain possible. Keep the current tab open and retry a failed save. A fresh browser page should use the stable Pages address when an older tunnel domain has expired.
 
-```powershell
-New-Item -ItemType Directory -Force deploy/certs
-tailscale cert --cert-file=deploy/certs/server.crt --key-file=deploy/certs/server.key YOUR_HOST.YOUR_TAILNET.ts.net
-python run.py gateway --host 127.0.0.1 --port 50071 --docnodes localhost:50051,localhost:50052,localhost:50053 --assist localhost:50061 --tls-cert deploy/certs/server.crt --tls-key deploy/certs/server.key
-```
+For a different repository, use `python scripts/setup_browser.py --share --publish-status OWNER/REPOSITORY` and change the discovery address in `scripts/build_browser_site.py`. To run a free direct tunnel without GitHub publication, use `python scripts/setup_browser.py --share`. Read its latest address from `logs/public-url.txt` after a rotation.
 
-Keep that gateway terminal open. In another host terminal run:
+The shared UI is copied into Pages with:
 
 ```powershell
-tailscale funnel --bg --tcp=443 tcp://127.0.0.1:50071
+.venv\Scripts\python.exe scripts/build_browser_site.py --api https://YOUR-CURRENT-TUNNEL.app.lhr.life
 ```
 
-Raw forwarding lets the Python gateway negotiate the HTTP/2 protocol required by gRPC and present its certificate directly. Keep the private key local. Renew the certificate as needed using Tailscale's certificate instructions.
+Commit the generated files under `docs/` when changing the interface. The configured origin is a fallback if the public discovery API cannot respond. Source files and endpoint files contain no passwords or tokens.
 
-Use the hostname printed by Tailscale. On another computer run the desktop, set Server connection to the printed hostname with :443 and enable TLS. The public endpoint is a gRPC gateway for the desktop client. Visiting it in a browser does not display the desktop interface. Test login, editing, a leader failure and reconnect through that endpoint before using it for evaluation. Stop sharing using the corresponding Funnel off command or `tailscale funnel reset` when the demo is over.
+## Local and LAN fallback
 
-Before sharing publicly, use scripts/manage_users.py to replace the published classroom accounts with your own accounts and restart the gateway. The workspace intentionally lets every authenticated user edit the shared documents. Public access exposes only the gateway, while voter and AI ports remain private. TLS certificate verification stays enabled in the desktop client.
+Double-click **Start browser demo.cmd** to open http://localhost:8080. For a trusted LAN:
 
-Funnel setup and any public exposure require the account owner's action. No account, public endpoint or cloud bill was created here.
+```powershell
+python scripts/setup_browser.py --lan
+```
 
-## Free cloud VM alternative
+Other laptops on that LAN open `http://HOST_PRIVATE_IP:8080` in a browser. Allow port 8080 through the Windows firewall only on the selected private network if prompted. Plain HTTP is for the controlled local network. Use the HTTPS tunnel for public access.
 
-Oracle advertises Always Free compute, subject to its current limits, account eligibility and regional capacity. That can host the Python processes and persistent disks. This needs an Oracle account and an available instance. Confirm the console explicitly marks the selected resources Always Free and avoid a paid upgrade. We did not provision a VM. A laptop/LAN demonstration is the ready fallback.
+The original desktop remains available through **Start Commonplace.cmd**. For an already running remote gateway, use `python scripts/launch_desktop.py --client-only --gateway HOST_IP:50070`, with certificate-verified TLS for an internet connection.
 
-Render's free web services have ephemeral filesystems and cannot attach persistent disks. That does not satisfy this release's durable SQLite recovery deployment. Its free static hosting also cannot run the Python voters and local model.
+## What is public
 
-## Sources checked November 17, 2026
+Only the browser edge is tunnelled. Browser requests use gRPC-Web; the edge uses native gRPC to the gateway. The browser cannot configure an arbitrary internal server. The gateway owns login and authorization. Browser keys and gateway tokens stay in memory and are revoked/expired through the normal session paths.
 
-- Tailscale pricing https://tailscale.com/pricing
-- Funnel availability and limits https://tailscale.com/docs/features/tailscale-funnel
-- TCP forwarding command https://tailscale.com/docs/reference/tailscale-cli/funnel
-- Oracle Free Tier https://www.oracle.com/cloud/free/
-- Render free service persistence https://render.com/docs/free
+This release deliberately has a shared workspace. Alice, Bob and Carol are published demo accounts; all authenticated users can edit all documents. Do not store personal or confidential material in the public demo. For a private group, create accounts with `scripts/manage_users.py`, remove the demo accounts and restart the gateway. The session cap and sign-in throttling are classroom safeguards, not a production abuse-protection system.
 
-Protocol behavior was checked against the Tailscale source at https://github.com/tailscale/tailscale/blob/main/ipn/ipnlocal/serve.go . Its TLS-terminated generic TCP mode advertises no application protocol, so the documented route forwards TCP to a TLS-enabled Python gateway. Certificate instructions https://tailscale.com/docs/reference/tailscale-cli#cert .
+## Moving to a server later
+
+The same Python processes can run on a persistent Linux VM. Keep one data directory per voter, put the browser edge behind HTTPS, and keep internal gRPC ports private. Separate machines improve failure independence; three processes on one laptop do not survive failure of that laptop. No VM or paid service was provisioned.
+
+GitHub Pages serves static assets and cannot run the Python services. Render's free filesystem is ephemeral and has no persistent disks, so it cannot preserve this release's SQLite recovery state. The working free route uses the laptop's compute and disks.
+
+Sources checked November 17, 2026: [localhost.run basics](https://localhost.run/docs), [free domain rotation](https://localhost.run/docs/faq), [gRPC-Web](https://grpc.io/docs/platforms/web/basics/), [GitHub Pages](https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages), [Render persistence](https://render.com/docs/free).

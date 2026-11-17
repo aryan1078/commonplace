@@ -75,6 +75,17 @@ function applyState(state) {
   renderDocuments();
 }
 
+$('mobile-documents').onclick = () => {
+  const visible = $('workspace').classList.toggle('show-documents');
+  $('mobile-documents').setAttribute('aria-expanded', String(visible));
+};
+$('document-list').addEventListener('click', event => {
+  if (event.target.closest('.document-item')) {
+    $('workspace').classList.remove('show-documents');
+    $('mobile-documents').setAttribute('aria-expanded', 'false');
+  }
+});
+
 async function flush() {
   clearTimeout(timer);
   if (saving) { await saving; if (dirty) return flush(); return; }
@@ -239,8 +250,14 @@ document.addEventListener('keydown', event => { if ((event.ctrlKey || event.meta
 $('save-status').onclick = () => flush().catch(() => {});
 window.addEventListener('beforeunload', event => { if (dirty || saving) { event.preventDefault(); event.returnValue = ''; } });
 async function ready() {
-  api = window.pywebview.api;
-  const settings = await call('settings'); $('server').value = settings.gateway; $('tls').checked = settings.tls;
+  api = (window.commonplaceBrowser || window.pywebview).api;
+  try {
+    const settings = await call('settings'); $('server').value = settings.gateway; $('tls').checked = settings.tls;
+    if (window.commonplaceBrowser) $('browser-status').textContent = 'The demo is online. Sign in to start writing.';
+  } catch (error) {
+    $('login-error').textContent = error.message;
+    if (window.commonplaceBrowser) $('browser-status').textContent = 'The host needs to start the demo server. Your browser needs no installation.';
+  }
   setInterval(async () => {
     if (!current || polling) return;
     polling = true;
@@ -249,4 +266,4 @@ async function ready() {
     finally { polling = false; }
   }, 900);
 }
-if (window.pywebview?.api) ready(); else window.addEventListener('pywebviewready', ready, {once: true});
+if (window.commonplaceBrowser?.api || window.pywebview?.api) ready(); else window.addEventListener('pywebviewready', ready, {once: true});

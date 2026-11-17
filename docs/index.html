@@ -1,53 +1,60 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-client="browser">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Commonplace is a collaborative document editor with Python gRPC services, three Raft replicas and local CPU writing assistance. An Advanced Operating Systems project.">
-  <title>Commonplace · Collaborative editing with Raft</title>
-  <link rel="stylesheet" href="site.css">
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Commonplace · Shared documents</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="site-header">
-    <a class="wordmark" href="./">commonplace</a>
-    <nav aria-label="Project links">
-      <a href="https://github.com/aryan1078/commonplace">Code</a>
-      <a href="https://github.com/aryan1078/commonplace/blob/main/docs/SETUP.md">Setup</a>
-      <a href="https://github.com/aryan1078/commonplace/raw/refs/heads/main/docs/Commonplace-project.pptx">Slides ↗</a>
-    </nav>
-  </header>
-  <main>
-    <section class="intro" aria-labelledby="title">
-      <p class="course">CS G623 · ADVANCED OPERATING SYSTEMS · PROJECT C</p>
-      <h1 id="title">A shared document editor<br>built around Raft.</h1>
-      <p class="lead">Write in the same document, see your teammates' changes and return to every saved version. Three document replicas keep an agreed history through a server failure.</p>
-      <div class="intro-actions">
-        <a class="button" href="https://github.com/aryan1078/commonplace/archive/refs/heads/main.zip">Download the source <span>↓</span></a>
-        <a class="text-link" href="https://github.com/aryan1078/commonplace#run-it">Run the demo →</a>
-      </div>
-      <p class="platform">Python 3.11 · Windows desktop client · gRPC services</p>
+<main id="login" class="login-layout">
+  <section class="introduction">
+    <a class="wordmark" href="#" aria-label="Commonplace home"><span class="brand-mark">c.</span>commonplace</a>
+    <div class="intro-copy"><p class="eyebrow">A SHARED WORKSPACE</p><h1>Room for<br>everyone's ideas.</h1>
+      <p class="intro-detail">Write together in one document, follow changes as they happen, and keep a record of every saved edit.</p>
+      <div class="intro-rule"></div><p class="intro-foot">Shared notes · Version history · Writing assistance</p>
+    </div>
+    <p class="product-note">Advanced Operating Systems · Project C</p>
+  </section>
+  <section class="signin-area"><form id="login-form" class="signin-form">
+    <h2>Welcome back.</h2><p class="subtle">Sign in to open your team's documents.</p>
+    <label for="username">Username</label><input id="username" autocomplete="username" required autofocus placeholder="Enter your username">
+    <label for="password">Password</label><div class="password-wrap"><input id="password" type="password" autocomplete="current-password" required placeholder="Enter your password"><button id="show-password" type="button" aria-label="Show password">Show</button></div>
+    <p id="login-error" class="error" role="alert"></p><button id="signin" class="primary full" type="submit">Sign in <span>→</span></button>
+    <p class="account-note">Accounts are managed by your project administrator.</p>
+    <p id="browser-status" class="browser-only account-note" role="status">Connecting to the demo…</p>
+    <p class="browser-only account-note">This is a shared course demo. Everyone signed in can read and edit these documents. Use sample notes only.</p>
+    <details class="connection-settings"><summary>Server connection</summary><label for="server">Gateway address</label><input id="server" value="localhost:50070" placeholder="hostname:port"><label class="check"><input id="tls" type="checkbox"> Use a secure connection (TLS)</label></details>
+    <details class="demo-details"><summary>Using the course demo?</summary><p>Select a demo account to fill its sign-in details.</p><div class="demo-users"><button type="button" data-demo="alice">Alice</button><button type="button" data-demo="bob">Bob</button><button type="button" data-demo="carol">Carol</button></div><p>These shared accounts are for classroom sample documents.</p></details>
+  </form></section>
+</main>
+<main id="workspace" class="workspace hidden">
+  <nav class="sidebar" aria-label="Workspace navigation">
+    <div class="wordmark small"><span class="brand-mark">c.</span>commonplace</div>
+    <div class="nav-heading"><h2>Documents</h2><button id="refresh-docs" class="icon-button" title="Refresh documents" aria-label="Refresh documents">↻</button></div>
+    <button id="new-document" class="new-document">＋ <span>New document</span></button>
+    <label class="search-wrap"><span class="sr-only">Find a document</span><input id="search" type="search" placeholder="Find a document…"></label>
+    <div id="document-list" class="document-list"></div>
+    <div class="sidebar-bottom"><button id="system-button" class="system-button"><span class="status-dot"></span>System status <span>↗</span></button><div class="user-row"><span id="user-avatar" class="avatar"></span><div><strong id="user-name"></strong><small id="server-name"></small></div><button id="logout" class="icon-button" title="Sign out" aria-label="Sign out">↪</button></div></div>
+  </nav>
+  <section class="main-area">
+    <header class="topbar"><button id="mobile-documents" class="mobile-only quiet-button" aria-label="Show documents" aria-expanded="false">Documents</button><div class="breadcrumb">Workspace <span>/</span> <strong id="breadcrumb-title">Documents</strong></div><div class="topbar-actions"><div id="participants" class="participants" aria-label="People in this document"></div><button id="history-button" class="quiet-button" disabled>History</button><button id="assist-button" class="assist-toggle" disabled>Writing assistant</button></div></header>
+    <div id="message" class="notice hidden" role="status"></div>
+    <section id="empty-state" class="empty-state"><p class="eyebrow">YOUR WORKSPACE</p><h1>Start with a blank page.</h1><p>Create a document for your team, or open one from the sidebar.</p><button id="empty-create" class="primary">Create a document <span>＋</span></button></section>
+    <section id="document-area" class="document-area hidden">
+      <div class="document-topline"><div class="document-location"><span class="document-icon">▤</span> SHARED DOCUMENT</div><button id="save-status" class="save-status" type="button" title="Save changes (Ctrl+S)">All changes saved</button></div>
+      <article class="paper"><h1 id="document-title"></h1><div class="document-meta"><span id="revision-label"></span><span>•</span><span>Changes save automatically</span></div><textarea id="editor" aria-label="Document text" placeholder="Start writing here. Invite a teammate to open the same document." spellcheck="true"></textarea></article>
+      <footer class="document-footer"><span id="word-count">0 words</span><span id="editing-status">Only you are here</span></footer>
     </section>
-    <figure class="product">
-      <img src="assets/editor.png" alt="The Commonplace desktop app with a shared meeting note, saved version indicator and local writing assistant." width="1707" height="960">
-      <figcaption>The running desktop client, connected to three independent document replicas.</figcaption>
-    </figure>
-    <section class="overview" aria-labelledby="use-title">
-      <div><p class="section-label">IN THE APP</p><h2 id="use-title">Open a document.<br>Work together.</h2></div>
-      <div class="features">
-        <article><h3>Sign in and edit</h3><p>Open two clients with different accounts and choose the same document. Edits save automatically, and presence shows who is there.</p></article>
-        <article><h3>Review the writing</h3><p>Check grammar, rewrite a selection, summarize notes or ask about the document. Review a suggestion before applying it as a saved edit.</p></article>
-        <article><h3>Follow the history</h3><p>See authors and versions in History. Open System status to identify the leader and watch replica progress during recovery.</p></article>
-      </div>
-    </section>
-    <section class="evidence" aria-labelledby="test-title">
-      <div class="test-heading"><p class="section-label">RECOVERY CHECK</p><h2 id="test-title">200 edits, with a leader failure in the middle.</h2></div>
-      <div class="test-content"><p>Eight clients completed 25 edits each while the elected leader was killed. The clients agreed, replaying history reproduced the final text, and the returning replica caught up.</p><p>The check also restarted all three voters on their original disks and retried an already committed operation. The documents and duplicate tracking survived.</p><a class="text-link" href="https://github.com/aryan1078/commonplace/blob/main/docs/results.md">Read the measured results →</a></div>
-    </section>
-    <section class="start" aria-labelledby="start-title">
-      <div><p class="section-label">TRY IT LOCALLY</p><h2 id="start-title">Start with Python 3.11.</h2><p>Download the repository and open <strong>Start Commonplace.cmd</strong>. The launcher installs the client dependencies and opens sign-in.</p><p><strong>Set up real AI.cmd</strong> downloads the local CPU model. Before installation, the assistant clearly labels its responses as demo output.</p></div>
-      <div class="reading"><h3>Project notes</h3><a href="https://github.com/aryan1078/commonplace/blob/main/docs/ARCHITECTURE.md">Architecture and edit flow <span>↗</span></a><a href="https://github.com/aryan1078/commonplace/blob/main/docs/SETUP.md">Setup and recovery commands <span>↗</span></a><a href="https://github.com/aryan1078/commonplace/blob/main/deploy/DEPLOYMENT.md">LAN and remote deployment <span>↗</span></a><a href="https://github.com/aryan1078/commonplace/actions">Automated test runs <span>↗</span></a></div>
-    </section>
-  </main>
-  <footer><p>Commonplace · Advanced Operating Systems, 2026–27</p><p>Python services. Fixed membership of three voters. Full-log replay.</p><a href="https://github.com/aryan1078/commonplace">View the repository ↗</a></footer>
-</body>
-</html>
+  </section>
+  <aside id="drawer" class="drawer hidden" aria-label="Document tools"><div class="drawer-heading"><h2 id="drawer-title"></h2><button id="close-drawer" class="icon-button" aria-label="Close panel">×</button></div>
+    <section id="assist-panel" class="tool-panel hidden"><p id="assistant-mode" class="assistant-mode">Writing service</p><p class="panel-intro">A second look at your writing. Review a suggestion before applying it.</p><div class="assistant-tools"><button data-task="grammar"><strong>Check grammar</strong><span>Find spelling and grammar issues</span></button><button data-task="summary"><strong>Summarize</strong><span>Get the main points of this document</span></button><button data-task="complete"><strong>Continue writing</strong><span>Suggest text at your cursor</span></button><button data-task="enhance"><strong>Rewrite selection</strong><span>Improve the passage you highlight</span></button></div><div class="rewrite-mode"><label for="rewrite-mode">Rewrite style</label><select id="rewrite-mode"><option value="concise">Make it concise</option><option value="clarify">Make it clearer</option><option value="formal">Make it formal</option><option value="expand">Add detail</option></select></div><form id="question-form"><label for="question">Ask about this document</label><div class="question-row"><input id="question" placeholder="What did we decide?"><button class="primary" type="submit" aria-label="Ask question">↑</button></div></form><div id="ai-result" aria-live="polite" class="ai-result"><p class="subtle">Choose a tool to get started.</p></div></section>
+    <section id="history-panel" class="tool-panel hidden"><p class="panel-intro">Every saved edit, in order. Newest first.</p><div id="history-list"></div></section>
+    <section id="system-panel" class="tool-panel hidden"><p class="panel-intro">Two of the three document servers must agree to save an edit.</p><div id="cluster-summary"></div><div id="node-list"></div><button id="refresh-system" class="quiet-button full">Refresh status</button><p class="system-note">Replica details are local observations. A recovering replica may briefly show an earlier version.</p></section>
+  </aside>
+</main>
+<dialog id="create-dialog"><form id="create-form"><h2>New document</h2><p class="subtle">Everyone in this workspace can open and edit it.</p><label for="document-name">Document name</label><input id="document-name" required maxlength="80" placeholder="e.g. Operating systems notes"><p id="create-error" class="error" role="alert"></p><div class="dialog-actions"><button type="button" id="cancel-create" class="quiet-button">Cancel</button><button type="submit" id="create-submit" class="primary">Create document</button></div></form></dialog>
+<dialog id="leave-dialog"><h2>Keep your unsaved text?</h2><p>A save is still pending. Retry the save before leaving, or copy your text so you can return to it.</p><div class="dialog-actions"><button id="stay" class="primary">Keep editing</button></div></dialog>
+<script src="browser-config.js"></script>
+<script src="browser.js"></script>
+<script src="app.js"></script>
+</body></html>

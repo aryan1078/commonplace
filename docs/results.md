@@ -1,4 +1,6 @@
-# Verified graphical release, November 17, 2026
+# Verification, November 17, 2026
+
+## Earlier desktop release
 
 Python 3.11.9 on Windows. Independent Python server processes with three independent SQLite data directories.
 
@@ -10,6 +12,12 @@ Python 3.11.9 on Windows. Independent Python server processes with three indepen
 - Loss of majority prevented fresh authoritative reads and writes. The partition test repaired a conflicting uncommitted suffix after healing.
 - A separate verified-certificate TLS gateway passed login and document reads through DesktopSession.
 - The source ZIP was extracted separately, protobuf files regenerated, and all 147 tests passed again in 19.31 seconds. Docker and separate physical-machine deployment require rehearsal.
-- Public sharing has been researched and documented. No public endpoint or cloud account was provisioned.
+- This desktop-only run preceded the browser deployment below. No cloud VM was provisioned.
 
 See cluster-verification.json, test-results.txt, real-ai-transcript.txt, tls-verification.txt and GUI-verification.md for the evidence and its scope.
+
+## Browser release, November 17, 2026
+
+The updated Windows suite passed **149 tests**. New integration checks send actual binary gRPC-Web frames through the ASGI edge to the real gateway/document/Assist stack. They cover two isolated accounts, Unicode edits, live updates, history, writing requests, logout, destination override rejection, origin restrictions, malformed frames, request size, idle expiry, session limits and replay of an acknowledged save after a lost HTTP reply.
+
+The UI was also exercised in browser tabs, including public HTTPS access through localhost.run. The provider rotates anonymous domains during a session. The host tracks replacements and publishes the non-secret endpoint on the separate demo-status branch; browser discovery reads that file. This is a temporary laptop-hosted public demo. It depends on the laptop, internet, tunnel provider and GitHub API being available.
