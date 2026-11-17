@@ -1,0 +1,26 @@
+
+Document: recording-rehearsal
+ADDRESS                 ROLE           TERM   COMMIT  APPLIED  VERSION  TEXT DIGEST
+127.0.0.1:4975          leader            1        2        2        1  4c7400a1f7eb72d4
+127.0.0.1:4976          follower          1        2        2        1  4c7400a1f7eb72d4
+127.0.0.1:4977          follower          1        2        2        1  4c7400a1f7eb72d4
+All three replicas agree on the document version and text digest.
+
+Stopped elected leader 127.0.0.1:4975 (PID 28360). Its disk was kept.
+
+Document: recording-rehearsal
+ADDRESS                 ROLE           TERM   COMMIT  APPLIED  VERSION  TEXT DIGEST
+127.0.0.1:4975          unreachable       -        -        -        -  -
+127.0.0.1:4976          leader            2        3        3        1  4c7400a1f7eb72d4
+127.0.0.1:4977          follower          2        3        3        1  4c7400a1f7eb72d4
+2 of 3 voters reachable. Two voters are needed for a majority.
+Replacement leader elected in a higher term. Return to the editor and save a new line.
+
+
+Document: recording-rehearsal
+ADDRESS                 ROLE           TERM   COMMIT  APPLIED  VERSION  TEXT DIGEST
+127.0.0.1:4975          follower          1        2        2        1  4c7400a1f7eb72d4
+127.0.0.1:4976          leader            2        3        3        1  4c7400a1f7eb72d4
+127.0.0.1:4977          follower          2        3        3        1  4c7400a1f7eb72d4
+All three replicas agree on the document version and text digest.
+PASS: real leader detected, only that voter stopped, higher-term election, original disk recovered, document revision and digests matched.
